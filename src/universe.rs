@@ -56,7 +56,7 @@ impl Universe {
                 for ant in &mut self.ants {
                     if ant.position.0 == row && ant.position.1 == col && cell == Cell::Food{
                         log!("Ant found food at ({},{})", ant.position.1, ant.position.0);  
-                        ant.status = AntState::Returning(0,0);
+                        ant.status = AntState::Returning(row, col);
                         next[idx] = Cell::Empty;
                     }
                 }
@@ -137,14 +137,18 @@ impl Universe {
                 }
             }).collect();
         let num_ants = 3;
-        log!("{}",js_sys::Math::random().round() as u32);
-        let ants = vec![
-            Ant { position: (0, 0), status: AntState::Searching({js_sys::Math::random() * (159 as f64)} as u32,{js_sys::Math::random() * (159 as f64) }as u32 )}; num_ants // Adjust as needed
-            // Add more ants as needed
-        ];
-        for ant in ants.iter() {
-            log!("ANT: {}, {}", ant.position.0, ant.position.1);
+        let mut ants = Vec::new();
+
+        for _ in 0..num_ants {
+            let loc_x = (js_sys::Math::random() * 159.0) as u32;
+            let loc_y = (js_sys::Math::random() * 159.0) as u32;
+            ants.push(Ant {
+                position: (0, 0), // Set initial position if needed, or use loc_x, loc_y
+                status: AntState::Searching(loc_x, loc_y),
+            });
+
         }
+
         Universe {
             width, 
             height, 

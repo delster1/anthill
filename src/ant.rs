@@ -1,6 +1,5 @@
 const UNIV_SIZE : u32  = 160;
 use crate::log;
-use std::fmt;
 #[derive(Clone, Copy)]
 pub struct Ant{
     pub position : (u32, u32), // position when ant started going home or random path generated
@@ -18,11 +17,14 @@ impl Ant{
         x < UNIV_SIZE && y < UNIV_SIZE
     }
 
-    fn set_random_destination(&mut self) {
-        let dest_x ={ js_sys::Math::random().round() as u32} * UNIV_SIZE;
-        let dest_y = {js_sys::Math::random().round() as u32} * UNIV_SIZE;
-
+    fn start_search(&mut self) {
+        
+        let dest_x = {js_sys::Math::random() * (159 as f64)} as u32;
+        let dest_y = {js_sys::Math::random() * (159 as f64)} as u32;
         self.status = AntState::Searching(dest_x, dest_y);
+        log!("NEW RANDOM DEST:{dest_x}, {dest_y}");
+
+        self.goto(dest_x, dest_y);
     }
 
     pub fn goto(&mut self, x: u32, y: u32) {
@@ -78,18 +80,47 @@ impl Ant{
     pub fn return_home(&mut self, x: u32, y:u32) {
         // Change the ant's status to Searching if it is already at the origin
         if self.position.0 < 3 && self.position.1 < 3 && self::AntState::Returning(x,y) == AntState::Returning(x,y) {
-            self.set_random_destination();
+            self.start_search();
             return;
         } 
-        if self.position.0 < 1 && self.position.1 > 1 && self::AntState::Returning(x,y) == AntState::Returning(x,y){
+        if self.position.0 < 1 && self.position.1 > 1 && self.status == AntState::Returning(x,y){
             self.update_position(self.position.0 -1, self.position.1);
             return;
         } 
-        if self.position.1 < 1 && self.position.0 > 1 && self::AntState::Returning(x,y) == AntState::Returning(x,y){
+        if self.position.1 < 1 && self.position.0 > 1 && self.status == AntState::Returning(x,y){
             self.update_position(self.position.0 , self.position.1 -1);
             return;
         } 
-        self.goto(x, y);
+        if self.status != AntState::Searching(x,y) {
+
+            if self.position.0 <= 1 && self.position.1 > 1 {
+                self.update_position(self.position.0 -1, self.position.1);
+                return;
+            } else if self.position.1 <= 1 && self.position.0 > 1 {
+                self.update_position(self.position.0 , self.position.1 -1);
+                return;
+            }
+            
+            let slope : f32 = x as f32 / y as f32;
+
+            let mut delta_x = slope - {self.position.0 - 1} as f32 / y as f32;
+            let mut delta_y = slope - self.position.0 as f32 / {self.position.1 - 1} as f32 ;
+            log!("Returning home! delta_x:{delta_x}, delta_y:{delta_y}");
+
+            delta_x = delta_x.abs();
+            delta_y = delta_y.abs();
+
+            if delta_x < delta_y {
+                self.update_position(self.position.0 -1, self.position.1);
+            } else if delta_x > delta_y {
+                self.update_position(self.position.0, self.position.1-1);
+            } else {
+                self.update_position(self.position.0 -1, self.position.1-1);
+
+            }
+        }
+
+
     }
 
         

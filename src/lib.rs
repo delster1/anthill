@@ -1,5 +1,5 @@
 // TODO:
-// - Refactor bug movement to be random path from home
+// - BUG FIXING - Food
 // - FIGURE OUT STUPID BUG
 // - Add food spawning in clusters
 // - change home to middle 
