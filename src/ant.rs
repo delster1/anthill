@@ -6,7 +6,7 @@ pub struct Ant{
     pub status: AntState,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum AntState {
     Searching(u32, u32),
     Returning(u32, u32),
@@ -26,7 +26,18 @@ impl Ant{
 
         self.goto(dest_x, dest_y);
     }
-
+    fn calculate_slope(&mut self, position: (u32, u32)) -> Option<f64> {
+        let (x, y) = position;
+    
+        if x == 0 {
+            // If x is 0, slope is undefined (vertical line), return None to indicate error
+            None
+        } else {
+            // Otherwise, calculate the slope and wrap it in Some
+            Some(y as f64 / x as f64)
+        }
+    }
+    
     pub fn goto(&mut self, x: u32, y: u32) {
         let dest_x = self.position.0 ;
         let dest_y = self.position.1 ;
@@ -36,14 +47,25 @@ impl Ant{
             return;
         }
 
-        log!("Going to: ({},{})", x, y);
-        let slope : u32 = x / y;
+        let slope = match self.calculate_slope(self.position) {
+            Some(slope) => {
+                // Slope calculation was successful, proceed with logic using the slope
+                println!("Slope is: {}", slope);
+                slope
+            },
+            None => {
+                // Slope calculation failed (e.g., division by zero), ant teleport home for now..
+                println!("Slope is undefined.");
+                self.position = (2,2);
+                return;
+            }
+        };
 
-        let mut delta_x = slope - (dest_x - 1) / dest_y;
-        let mut delta_y = slope - dest_x  / (dest_y - 1);
+        let mut delta_x = slope - ((dest_x - 1) / dest_y) as f64;
+        let mut delta_y = slope - (dest_x   / (dest_y - 1)) as f64;
 
-        delta_x = delta_x.max(0);
-        delta_y = delta_y.max(0);
+        delta_x = delta_x.max(0.0);
+        delta_y = delta_y.max(0.0);
 
         if delta_x < delta_y {
             self.update_position(dest_x + 1, dest_y);
@@ -105,7 +127,6 @@ impl Ant{
 
             let mut delta_x = slope - {self.position.0 - 1} as f32 / y as f32;
             let mut delta_y = slope - self.position.0 as f32 / {self.position.1 - 1} as f32 ;
-            log!("Returning home! delta_x:{delta_x}, delta_y:{delta_y}");
 
             delta_x = delta_x.abs();
             delta_y = delta_y.abs();

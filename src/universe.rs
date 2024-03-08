@@ -37,9 +37,9 @@ impl Universe {
     fn get_index(&mut self, row : u32, col : u32) -> usize {
         return (row * self.width + col) as usize;
     }
-    pub fn new_ant(&mut self, row : u32, col : u32) {
-        let dest_x ={ js_sys::Math::random().round() as u32} * self.width;
-        let dest_y = {js_sys::Math::random().round() as u32} * self.height;
+    pub fn new_ant(&mut self) {
+        let dest_x ={ js_sys::Math::random() * (159 as f64)} as u32;
+        let dest_y = {js_sys::Math::random() * (159 as f64)} as u32;
 
         let my_ant = Ant { position: (0, 0), status: AntState::Searching(dest_x, dest_y)};
         self.ants.push(my_ant);
@@ -60,7 +60,7 @@ impl Universe {
                         next[idx] = Cell::Empty;
                     }
                 }
-                // ??? TBD: What needs to happen every tick???
+
             }
         }
         for ant in &mut self.ants {
@@ -139,14 +139,13 @@ impl Universe {
         let num_ants = 3;
         let mut ants = Vec::new();
 
-        for _ in 0..num_ants {
+        for i in 0..num_ants {
             let loc_x = (js_sys::Math::random() * 159.0) as u32;
             let loc_y = (js_sys::Math::random() * 159.0) as u32;
             ants.push(Ant {
                 position: (0, 0), // Set initial position if needed, or use loc_x, loc_y
                 status: AntState::Searching(loc_x, loc_y),
             });
-
         }
 
         Universe {
