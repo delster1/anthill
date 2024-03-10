@@ -38,12 +38,12 @@ impl Universe {
         return (row * self.width + col) as usize;
     }
     pub fn new_ant(&mut self) {
-        let dest_x ={ js_sys::Math::random() * (159 as f64)} as u32;
-        let dest_y = {js_sys::Math::random() * (159 as f64)} as u32;
+        let dest_x ={ js_sys::Math::random() * 80.0} as u32;
+        let dest_y = {js_sys::Math::random() * 80.0} as u32;
 
         let my_ant = Ant { position: (0, 0), status: AntState::Searching(dest_x, dest_y)};
         self.ants.push(my_ant);
-        log!("Created new ant");
+        log!("Created new ant going to {dest_x}, {dest_y}");
     }
     pub fn tick(&mut self) {
         let mut next = self.cells.clone();
@@ -139,9 +139,10 @@ impl Universe {
         let num_ants = 3;
         let mut ants = Vec::new();
 
-        for i in 0..num_ants {
-            let loc_x = (js_sys::Math::random() * 159.0) as u32;
-            let loc_y = (js_sys::Math::random() * 159.0) as u32;
+        for _ in 0..num_ants {
+            let loc_x = (js_sys::Math::random() * 80.0) as u32;
+            let loc_y = (js_sys::Math::random() * 80.0) as u32;
+            log!("{loc_x},{loc_y} ");
             ants.push(Ant {
                 position: (0, 0), // Set initial position if needed, or use loc_x, loc_y
                 status: AntState::Searching(loc_x, loc_y),

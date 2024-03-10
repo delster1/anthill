@@ -1,6 +1,5 @@
 // TODO:
-// - BUG FIXING - Food
-// - FIGURE OUT STUPID BUG
+// - figure out (2,2) ant bug
 // - Add food spawning in clusters
 // - change home to middle 
 // - figure out ant pheremones
