@@ -1,8 +1,11 @@
 // TODO:
-// - figure out (2,2) ant bug
+// - refactor code to run faster by changing how data is sent to wasm
 // - Add food spawning in clusters
 // - change home to middle 
+    // - change ant movement functions
+    // - change slope calculations to match
 // - figure out ant pheremones
+    // - do paths need to be a list of pts?
 // - add obstacles and pathfinding around
 mod utils;
 mod universe;
