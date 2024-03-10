@@ -55,7 +55,9 @@ impl Ant{
             },
             None => {
                 // Slope calculation failed (e.g., division by zero), ant teleport home for now..
+                log!("SLOPE CALCULATION FAILED");
                 self.position = (2,2);
+                self.start_search();
                 return;
             }
         };
