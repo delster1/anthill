@@ -1,4 +1,5 @@
 // TODO:
+// - refactor code out of canvas to a better render thing
 // - refactor code to run faster by changing how data is sent to wasm
 // - Add food spawning in clusters
 // - change home to middle 
@@ -6,7 +7,9 @@
     // - change slope calculations to match
 // - figure out ant pheremones
     // - do paths need to be a list of pts?
+    // - how will ants travel along them to and from?
 // - add obstacles and pathfinding around
+// - add ants searching perimeter for food
 mod utils;
 mod universe;
 mod cell;

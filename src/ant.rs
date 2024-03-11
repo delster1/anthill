@@ -17,6 +17,7 @@ impl Ant{
         x < UNIV_SIZE && y < UNIV_SIZE
     }
 
+
     fn start_search(&mut self) {
     
         let dest_x = {js_sys::Math::random() * 160.0 } as u32;

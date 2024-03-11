@@ -45,6 +45,16 @@ impl Universe {
         self.ants.push(my_ant);
         log!("Created new ant going to {dest_x}, {dest_y}");
     }
+
+    fn check_cell_for_food(&mut self, idx : usize) -> Option<usize> {
+        if self.cells[idx] == Cell::Food {
+            Some(idx)
+        } else {
+            None
+        }
+
+    }
+
     pub fn tick(&mut self) {
         let mut next = self.cells.clone();
         for row in 0..self.width {
@@ -56,6 +66,40 @@ impl Universe {
                 for ant in &mut self.ants {
                     if ant.position.0 == row && ant.position.1 == col && cell == Cell::Food{
                         log!("Ant found food at ({},{})", ant.position.1, ant.position.0);  
+                        ant.status = AntState::Returning(row, col);
+                        next[idx] = Cell::Empty;
+                    } else if ant.position.0 + 1 == row && ant.position.1 + 1 == col && cell == Cell::Food {
+                        ant.status = AntState::Returning(row, col);
+                        next[idx] = Cell::Empty;
+                    }
+                    else if ant.position.0 == row && ant.position.1 + 1== col && cell == Cell::Food{
+                        log!("Ant found food at ({},{})", ant.position.1 , ant.position.0);  
+                        ant.status = AntState::Returning(row, col);
+                        next[idx] = Cell::Empty;
+                    } else if ant.position.0 + 1 == row && ant.position.1  == col && cell == Cell::Food {
+                        log!("Ant found food at ({},{})", ant.position.1 , ant.position.0);  
+                        ant.status = AntState::Returning(row, col);
+                        next[idx] = Cell::Empty;
+                    }
+                    else if ant.position.0  - 1== row && ant.position.1 - 1== col && cell == Cell::Food{
+                        log!("Ant found food at ({},{})", ant.position.1, ant.position.0);  
+                        ant.status = AntState::Returning(row, col);
+                        next[idx] = Cell::Empty;
+                    } 
+                    else if ant.position.0 - 1== row && ant.position.1 == col && cell == Cell::Food{
+                        log!("Ant found food at ({},{})", ant.position.1, ant.position.0);  
+                        ant.status = AntState::Returning(row, col);
+                        next[idx] = Cell::Empty;
+                    } else if ant.position.0  == row && ant.position.1 - 1 == col && cell == Cell::Food {
+                        ant.status = AntState::Returning(row, col);
+                        next[idx] = Cell::Empty;
+                    }
+                    else if ant.position.0 - 1== row && ant.position.1 + 1== col && cell == Cell::Food{
+                        log!("Ant found food at ({},{})", ant.position.1, ant.position.0);  
+                        ant.status = AntState::Returning(row, col);
+                        next[idx] = Cell::Empty;
+                    } else if ant.position.0 + 1 == row && ant.position.1 - 1 == col && cell == Cell::Food {
+                        log!("Ant found food at ({},{})", ant.position.1 , ant.position.0);  
                         ant.status = AntState::Returning(row, col);
                         next[idx] = Cell::Empty;
                     }
