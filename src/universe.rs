@@ -46,14 +46,6 @@ impl Universe {
         log!("Created new ant going to {dest_x}, {dest_y}");
     }
 
-    fn check_cell_for_food(&mut self, idx : usize) -> Option<usize> {
-        if self.cells[idx] == Cell::Food {
-            Some(idx)
-        } else {
-            None
-        }
-
-    }
 
     pub fn tick(&mut self) {
         let mut next = self.cells.clone();
