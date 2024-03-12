@@ -30,18 +30,17 @@ impl Ant{
         self.goto(dest_x,dest_y);
     }
     fn calculate_slope(&mut self, position: (u32, u32)) -> Option<f32> {
-        let (x, y) = position;
     
-        if x == 0 {
+        if position.0 == 0 {
             // If x is 0, slope is undefined (vertical line), return None to indicate error
             None
         } else {
             match self.status {
-                AntState::Returning(_,_ ) => {
+                AntState::Returning(x,y ) => {
                     Some((self.home.0 as f32 - y as f32)  / (self.home.1 as f32 - x as f32))
                 },
-                AntState::Searching(x, ) => {
-                    Some()
+                AntState::Searching(x, y) => {
+                    Some((y as f32 - self.home.0 as f32) / (x as f32 - self.home.1 as f32))
                 }
             }
             // Otherwise, calculate the slope and wrap it in Some
