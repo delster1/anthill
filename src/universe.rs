@@ -41,7 +41,7 @@ impl Universe {
         let dest_x ={ js_sys::Math::random() * 80.0} as u32;
         let dest_y = {js_sys::Math::random() * 80.0} as u32;
 
-        let my_ant = Ant { position: (0, 0), status: AntState::Searching(dest_x, dest_y)};
+        let my_ant = Ant { position: (0, 0), status: AntState::Searching(dest_x, dest_y), home : (self.width/2, self.height/2)};
         self.ants.push(my_ant);
         log!("Created new ant going to {dest_x}, {dest_y}");
     }
@@ -137,9 +137,10 @@ impl Universe {
     }
 
     // You might also need a method to get the number of ants to correctly iterate over the array in JS
-    pub fn ants_count(&self) -> u32 {
+    pub fn ants_count(&mut self) -> u32 {
         self.ants.len() as u32
     }
+    
     pub fn width(&self) -> u32 {
         self.width
     }
@@ -172,16 +173,17 @@ impl Universe {
                     Cell::Empty
                 }
             }).collect();
-        let num_ants = 3;
+        let num_ants = 1;
         let mut ants = Vec::new();
-
+        let home_loc = (width / 2, height / 2); // Call the home_location function using self
         for _ in 0..num_ants {
-            let loc_x = (js_sys::Math::random() * 80.0) as u32;
-            let loc_y = (js_sys::Math::random() * 80.0) as u32;
-            log!("{loc_x},{loc_y} ");
+            let loc_x = (js_sys::Math::random() * 160.0) as u32;
+            let loc_y = (js_sys::Math::random() * 160.0) as u32;
+            log!("Ant spawned! Going to: ({loc_x},{loc_y}) ");
             ants.push(Ant {
-                position: (0, 0), // Set initial position if needed, or use loc_x, loc_y
-                status: AntState::Searching(loc_x, loc_y),
+                position: home_loc, // Set initial position if needed, or use loc_x, loc_y
+                status: AntState::Searching(1,1),
+                home: home_loc,
             });
         }
 
