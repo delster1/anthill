@@ -182,7 +182,7 @@ impl Universe {
             log!("Ant spawned! Going to: ({loc_x},{loc_y}) ");
             ants.push(Ant {
                 position: home_loc, // Set initial position if needed, or use loc_x, loc_y
-                status: AntState::Searching(1,1),
+                status: AntState::Searching(loc_x,loc_y),
                 home: home_loc,
             });
         }

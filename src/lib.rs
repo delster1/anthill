@@ -2,9 +2,8 @@
 // - refactor code out of canvas to a better render thing
 // - refactor code to run faster by changing how data is sent to wasm
 // - Add food spawning in clusters
-// - change home to middle 
-    // - change ant movement functions
-    // - change slope calculations to match
+// - FINISHED CHANGING ANT HOME TO MIDDLE
+// - Fix associated movement functions like changing home and re-searching - get code prod-ready
 // - figure out ant pheremones
     // - do paths need to be a list of pts?
     // - how will ants travel along them to and from?
