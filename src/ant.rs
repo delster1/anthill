@@ -18,15 +18,13 @@ impl Ant{
         x < UNIV_SIZE && y < UNIV_SIZE
     }
 
-
-
     fn start_search(&mut self) {
     
         let dest_x = {js_sys::Math::random() * 160.0 } as u32;
         let dest_y = {js_sys::Math::random() * 160.0} as u32;
         self.status = AntState::Searching(dest_x, dest_y);
         log!("NEW RANDOM DEST:{dest_x}, {dest_y}");
-        self.position = (0,0);
+        self.position = self.home;
         self.goto(dest_x,dest_y);
     }
     fn calculate_slope(&mut self) -> Option<f32> {
@@ -84,10 +82,7 @@ impl Ant{
         let pos_x = self.position.0 ;
         let pos_y = self.position.1 ;
         // gets ant out of the house
-        if pos_x <= 1 || pos_y <= 1 {
-            self.update_position(pos_x + 1, pos_y + 1);
-            return;
-        }
+
         // gets slope and handles error
         let slope = match self.calculate_slope() {
             Some(slope) => {
@@ -125,7 +120,7 @@ impl Ant{
             .enumerate()
             .min_by(|(_, a), (_, b)| 
                 a.partial_cmp(b)
-                .unwrap())
+                .unwrap_or(std::cmp::Ordering::Equal))
             .map(|(index, _)| index))
             .unwrap_or(usize::MAX);
         self.update_position(potential_moves[min_index].0, potential_moves[min_index].1);
@@ -160,18 +155,10 @@ impl Ant{
         let pos_x = self.position.0;
         let pos_y = self.position.1;
         // Change the ant's status to Searching if it is already at the origin
-        if pos_x < 3 && pos_y < 3 && self::AntState::Returning(x,y) == AntState::Returning(x,y) {
+        if {self.home.0 - 1} <= pos_x && pos_x <= {self.home.0 + 1} && {self.home.1 - 1} <= pos_y && pos_y <= {self.home.1 + 1} {
             self.start_search();
             return;
-        } 
-        if pos_x < 1 && pos_y > 1 && self.status == AntState::Returning(x,y){
-            self.update_position(pos_x, pos_y - 1);
-            return;
-        } 
-        if pos_y < 1 && pos_x > 1 && self.status == AntState::Returning(x,y){
-            self.update_position(pos_x - 1, pos_y );
-            return;
-        } 
+        }
         if self.status != AntState::Searching(x,y) {
             // actual code for returning home below:
             // if on an edge of the screen, keep walking on edge
@@ -199,7 +186,7 @@ impl Ant{
                     return;
                 }
             };
-
+            // stolen code from goto - need to make a function for this - duplicate code! 
             let potential_moves = [
                 (pos_x + 1, pos_y), // Right
                 (pos_x, pos_y + 1), // Up

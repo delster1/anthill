@@ -41,7 +41,7 @@ impl Universe {
         let dest_x ={ js_sys::Math::random() * 80.0} as u32;
         let dest_y = {js_sys::Math::random() * 80.0} as u32;
 
-        let my_ant = Ant { position: (0, 0), status: AntState::Searching(dest_x, dest_y), home : (self.width/2, self.height/2)};
+        let my_ant = Ant { position: (self.width/2, self.height/2), status: AntState::Searching(dest_x, dest_y), home : (self.width/2, self.height/2)};
         self.ants.push(my_ant);
         log!("Created new ant going to {dest_x}, {dest_y}");
     }
@@ -163,7 +163,7 @@ impl Universe {
 
         let cells = (0..width * height)
             .map(|i| {
-                if i % 4096 == 0 {
+                if i % 12800 == 0 {
                     Cell::Home
                 } else if js_sys::Math::random() < 0.01{
                    Cell::Food
