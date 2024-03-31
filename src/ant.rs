@@ -72,8 +72,9 @@ impl Ant{
     pub fn wander(&mut self, row : &u32, col: &u32) {
         let chance_to_stop : u32 = {js_sys::Math::random() * 100.0} as u32;
         if chance_to_stop == 1{
-            self.status = AntState::Returning(*row, *col);
-            self.return_home(*row, *col);
+
+            self.status = AntState::Returning(self.pos.0, self.pos.1);
+            self.return_home(self.pos.0, self.pos.1);
             log!("STOPPED WANDERING");
             return;
         }
