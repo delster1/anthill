@@ -19,6 +19,7 @@ impl fmt::Display for Universe {
                 let symbol: char = match cell {
                     Cell::Empty => '◻',
                     Cell::Trail => '|',
+                    Cell::Searched => '0',
                     Cell::Food => '🥞',
                     Cell::Home => '⌂',
                 };
@@ -118,7 +119,7 @@ impl Universe {
                 AntState::Returning(x, y, false) => {
 
                     let idx = ant.get_index();
-                    next[idx] = Cell::Empty;
+                    next[idx] = Cell::Searched;
                     ant.return_home(x, y);
                     
                     // Logic for returning home
