@@ -58,41 +58,41 @@ impl Universe {
                 for ant in &mut self.ants {
                     if ant.position.0 == row && ant.position.1 == col && cell == Cell::Food{
                         log!("Ant found food at ({},{})", ant.position.1, ant.position.0);  
-                        ant.status = AntState::Returning(row, col);
+                        ant.status = AntState::Returning(row, col, true);
                         next[idx] = Cell::Empty;
                     } else if ant.position.0 + 1 == row && ant.position.1 + 1 == col && cell == Cell::Food {
-                        ant.status = AntState::Returning(row, col);
+                        ant.status = AntState::Returning(row, col, true);
                         next[idx] = Cell::Empty;
                     }
                     else if ant.position.0 == row && ant.position.1 + 1== col && cell == Cell::Food{
                         log!("Ant found food at ({},{})", ant.position.1 , ant.position.0);  
-                        ant.status = AntState::Returning(row, col);
+                        ant.status = AntState::Returning(row, col, true);
                         next[idx] = Cell::Empty;
                     } else if ant.position.0 + 1 == row && ant.position.1  == col && cell == Cell::Food {
                         log!("Ant found food at ({},{})", ant.position.1 , ant.position.0);  
-                        ant.status = AntState::Returning(row, col);
+                        ant.status = AntState::Returning(row, col, true);
                         next[idx] = Cell::Empty;
                     }
                     else if ant.position.0  - 1== row && ant.position.1 - 1== col && cell == Cell::Food{
                         log!("Ant found food at ({},{})", ant.position.1, ant.position.0);  
-                        ant.status = AntState::Returning(row, col);
+                        ant.status = AntState::Returning(row, col, true);
                         next[idx] = Cell::Empty;
                     } 
                     else if ant.position.0 - 1== row && ant.position.1 == col && cell == Cell::Food{
                         log!("Ant found food at ({},{})", ant.position.1, ant.position.0);  
-                        ant.status = AntState::Returning(row, col);
+                        ant.status = AntState::Returning(row, col, true);
                         next[idx] = Cell::Empty;
                     } else if ant.position.0  == row && ant.position.1 - 1 == col && cell == Cell::Food {
-                        ant.status = AntState::Returning(row, col);
+                        ant.status = AntState::Returning(row, col, true);
                         next[idx] = Cell::Empty;
                     }
                     else if ant.position.0 - 1== row && ant.position.1 + 1== col && cell == Cell::Food{
                         log!("Ant found food at ({},{})", ant.position.1, ant.position.0);  
-                        ant.status = AntState::Returning(row, col);
+                        ant.status = AntState::Returning(row, col, true);
                         next[idx] = Cell::Empty;
                     } else if ant.position.0 + 1 == row && ant.position.1 - 1 == col && cell == Cell::Food {
                         log!("Ant found food at ({},{})", ant.position.1 , ant.position.0);  
-                        ant.status = AntState::Returning(row, col);
+                        ant.status = AntState::Returning(row, col, true);
                         next[idx] = Cell::Empty;
                     }
                 }
@@ -107,10 +107,18 @@ impl Universe {
                     // ant goes to it's implicitly defined path
                 },
 
-                AntState::Returning(x, y) => {
+                AntState::Returning(x, y, true) => {
 
                     let idx = ant.get_index();
                     next[idx] = Cell::Trail;
+                    ant.return_home(x, y);
+                    
+                    // Logic for returning home
+                }
+                AntState::Returning(x, y, false) => {
+
+                    let idx = ant.get_index();
+                    next[idx] = Cell::Empty;
                     ant.return_home(x, y);
                     
                     // Logic for returning home
@@ -191,8 +199,7 @@ impl Universe {
             width, 
             height, 
             cells,
-            ants,
+            ants
         }
     }
-    
 }

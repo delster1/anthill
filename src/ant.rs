@@ -10,7 +10,7 @@ pub struct Ant{
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum AntState {
     Searching(u32, u32),
-    Returning(u32, u32),
+    Returning(u32, u32, bool),
 }
 
 impl Ant{
@@ -31,7 +31,7 @@ impl Ant{
     // determines a static-ish slope depending on antstate that will be compared to determine ant's next move every tick
     // gives slope to a random food when searching, and home when home
         match self.status {
-            AntState::Returning(x,y ) => {
+            AntState::Returning(x,y, _ ) => {
                 let slope = (self.home.0 as f32 - y as f32)  / (self.home.1 as f32 - x as f32);
                 Some(slope)
             },
@@ -54,7 +54,7 @@ impl Ant{
             None
         } else {
             match self.status {
-                AntState::Returning(_,_ ) => {
+                AntState::Returning(_,_, _ ) => {
                     let slope = (self.home.0 as f32 - curr_y as f32)  / (self.home.1 as f32 - curr_x as f32);
                     Some(slope)
                 },
@@ -106,6 +106,13 @@ impl Ant{
         ];
 
         let current_distance = self.get_current_distance_to(&x, &y) as f32;
+
+        if current_distance <= 2.0 {
+            log!("ANT ARRIVED AT RANDOM POS");
+            self.status = AntState::Returning(x, y, false);
+            self.return_home(x, y);
+            return;
+        }
         let deltas : Vec<f32> = potential_moves.iter().map(|(new_x, new_y)|  {
             let mut new_slope = self.calculate_current_slope((*new_x, *new_y)).unwrap_or(f32::MAX);
             let distance = self.get_distance_from_to(new_x, new_y, &x, &y) as f32;
@@ -209,7 +216,7 @@ impl Ant{
                 .enumerate()
                 .min_by(|(_, a), (_, b)| 
                     a.partial_cmp(b)
-                    .unwrap())
+                    .unwrap_or(std::cmp::Ordering::Equal))
                 .map(|(index, _)| index))
                 .unwrap_or(usize::MAX);
             self.update_position(potential_moves[min_index].0, potential_moves[min_index].1);
