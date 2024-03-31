@@ -42,7 +42,7 @@ impl Universe {
         let dest_x ={ js_sys::Math::random() * 80.0} as u32;
         let dest_y = {js_sys::Math::random() * 80.0} as u32;
 
-        let my_ant = Ant { position: (self.width/2, self.height/2), status: AntState::Searching(dest_x, dest_y), home : (self.width/2, self.height/2)};
+        let my_ant = Ant { pos: (self.width/2, self.height/2), status: AntState::Searching(dest_x, dest_y), home : (self.width/2, self.height/2), food_ct: 0};
         self.ants.push(my_ant);
         log!("Created new ant going to {dest_x}, {dest_y}");
     }
@@ -57,43 +57,53 @@ impl Universe {
                 let idx = self.get_index(row, col);
                 let cell = self.cells[idx];
                 for ant in &mut self.ants {
-                    if ant.position.0 == row && ant.position.1 == col && cell == Cell::Food{
-                        log!("Ant found food at ({},{})", ant.position.1, ant.position.0);  
-                        ant.status = AntState::Returning(row, col, true);
+                    if ant.pos.0 == row && ant.pos.1 == col && cell == Cell::Food{
+                        log!("Ant found food at ({},{})", ant.pos.1, ant.pos.0);  
+                        ant.food_ct += 1;
+                        ant.found_food(&row, &col);
                         next[idx] = Cell::Empty;
-                    } else if ant.position.0 + 1 == row && ant.position.1 + 1 == col && cell == Cell::Food {
-                        ant.status = AntState::Returning(row, col, true);
-                        next[idx] = Cell::Empty;
-                    }
-                    else if ant.position.0 == row && ant.position.1 + 1== col && cell == Cell::Food{
-                        log!("Ant found food at ({},{})", ant.position.1 , ant.position.0);  
-                        ant.status = AntState::Returning(row, col, true);
-                        next[idx] = Cell::Empty;
-                    } else if ant.position.0 + 1 == row && ant.position.1  == col && cell == Cell::Food {
-                        log!("Ant found food at ({},{})", ant.position.1 , ant.position.0);  
-                        ant.status = AntState::Returning(row, col, true);
+                    } else if ant.pos.0 + 1 == row && ant.pos.1 + 1 == col && cell == Cell::Food {
+                        ant.food_ct += 1;
+                        ant.found_food(&row, &col);
                         next[idx] = Cell::Empty;
                     }
-                    else if ant.position.0  - 1== row && ant.position.1 - 1== col && cell == Cell::Food{
-                        log!("Ant found food at ({},{})", ant.position.1, ant.position.0);  
-                        ant.status = AntState::Returning(row, col, true);
+                    else if ant.pos.0 == row && ant.pos.1 + 1== col && cell == Cell::Food{
+                        log!("Ant found food at ({},{})", ant.pos.1 , ant.pos.0);  
+                        ant.food_ct += 1;
+                        ant.found_food(&row, &col);
+                        next[idx] = Cell::Empty;
+                    } else if ant.pos.0 + 1 == row && ant.pos.1  == col && cell == Cell::Food {
+                        log!("Ant found food at ({},{})", ant.pos.1 , ant.pos.0);  
+                        ant.food_ct += 1;
+                        ant.found_food(&row, &col);
+                        next[idx] = Cell::Empty;
+                    }
+                    else if ant.pos.0  - 1== row && ant.pos.1 - 1== col && cell == Cell::Food{
+                        log!("Ant found food at ({},{})", ant.pos.1, ant.pos.0);  
+                        ant.food_ct += 1;
+                        ant.found_food(&row, &col);
                         next[idx] = Cell::Empty;
                     } 
-                    else if ant.position.0 - 1== row && ant.position.1 == col && cell == Cell::Food{
-                        log!("Ant found food at ({},{})", ant.position.1, ant.position.0);  
-                        ant.status = AntState::Returning(row, col, true);
+                    else if ant.pos.0 - 1== row && ant.pos.1 == col && cell == Cell::Food{
+                        log!("Ant found food at ({},{})", ant.pos.1, ant.pos.0);  
+                        ant.food_ct += 1;
+                        ant.found_food(&row, &col);
+                        // ant.status = AntState::Wandering(row, col);
                         next[idx] = Cell::Empty;
-                    } else if ant.position.0  == row && ant.position.1 - 1 == col && cell == Cell::Food {
-                        ant.status = AntState::Returning(row, col, true);
+                    } else if ant.pos.0  == row && ant.pos.1 - 1 == col && cell == Cell::Food {
+                        ant.food_ct += 1;
+                        ant.found_food(&row, &col);
                         next[idx] = Cell::Empty;
                     }
-                    else if ant.position.0 - 1== row && ant.position.1 + 1== col && cell == Cell::Food{
-                        log!("Ant found food at ({},{})", ant.position.1, ant.position.0);  
-                        ant.status = AntState::Returning(row, col, true);
+                    else if ant.pos.0 - 1== row && ant.pos.1 + 1== col && cell == Cell::Food{
+                        log!("Ant found food at ({},{})", ant.pos.1, ant.pos.0);  
+                        ant.food_ct += 1;
+                        ant.found_food(&row, &col);
                         next[idx] = Cell::Empty;
-                    } else if ant.position.0 + 1 == row && ant.position.1 - 1 == col && cell == Cell::Food {
-                        log!("Ant found food at ({},{})", ant.position.1 , ant.position.0);  
-                        ant.status = AntState::Returning(row, col, true);
+                    } else if ant.pos.0 + 1 == row && ant.pos.1 - 1 == col && cell == Cell::Food {
+                        log!("Ant found food at ({},{})", ant.pos.1 , ant.pos.0);  
+                        ant.food_ct += 1;
+                        ant.found_food(&row, &col);
                         next[idx] = Cell::Empty;
                     }
                 }
@@ -102,28 +112,36 @@ impl Universe {
         }
         for ant in &mut self.ants {
             // Implement logic based on ant state
-            match ant.status {
-                AntState::Searching(x , y) => {
+            match (ant.status, ant.food_ct) {
+                (AntState::Searching(x , y), _) => {
                     ant.goto(x, y);
                     // ant goes to it's implicitly defined path
                 },
 
-                AntState::Returning(x, y, true) => {
+                (AntState::Returning(x, y), 0) => {
+
+                    let idx = ant.get_index();
+                    next[idx] = Cell::Searched;
+                    log!("RETURNING WITHOUT FOOD");
+                    ant.return_home(x, y);
+                    
+                    // Logic for returning home
+                },
+                (AntState::Returning(x, y), 1..) => {
 
                     let idx = ant.get_index();
                     next[idx] = Cell::Trail;
                     ant.return_home(x, y);
                     
                     // Logic for returning home
-                }
-                AntState::Returning(x, y, false) => {
-
+                },
+                (AntState::Wandering(x, y),_) => {
                     let idx = ant.get_index();
-                    next[idx] = Cell::Searched;
-                    ant.return_home(x, y);
-                    
-                    // Logic for returning home
-                }
+                    next[idx] = Cell::Trail;
+                    ant.wander(&x,&y);
+                },
+                (_,_) => {}
+
                 // Handle other states as needed
             }
         }
@@ -136,8 +154,8 @@ impl Universe {
     pub fn ants_positions_flat(&self) -> *const u32 {
         let mut flat_positions: Vec<u32> = Vec::with_capacity(self.ants.len() * 2);
         for ant in &self.ants {
-            flat_positions.push(ant.position.0);
-            flat_positions.push(ant.position.1);
+            flat_positions.push(ant.pos.0);
+            flat_positions.push(ant.pos.1);
         }
 
         // IMPORTANT: Ensure this memory is not freed while being used in JS
@@ -190,9 +208,10 @@ impl Universe {
             let loc_y = (js_sys::Math::random() * 160.0) as u32;
             log!("Ant spawned! Going to: ({loc_x},{loc_y}) ");
             ants.push(Ant {
-                position: home_loc, // Set initial position if needed, or use loc_x, loc_y
+                pos: home_loc, // Set initial position if needed, or use loc_x, loc_y
                 status: AntState::Searching(loc_x,loc_y),
                 home: home_loc,
+                food_ct:  0,
             });
         }
 

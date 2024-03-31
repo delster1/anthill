@@ -1,16 +1,19 @@
 
 const UNIV_SIZE : u32  = 160;
+
 use crate::log;
 #[derive(Clone, Copy)]
 pub struct Ant{
-    pub position : (u32, u32), // position when ant started going home or random path generated
+    pub pos : (u32, u32), // position when ant started going home or random path generated
     pub status: AntState,
     pub home: (u32, u32),
+    pub food_ct: u32,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum AntState {
     Searching(u32, u32),
-    Returning(u32, u32, bool),
+    Returning(u32, u32),
+    Wandering(u32, u32)
 }
 
 impl Ant{
@@ -19,31 +22,83 @@ impl Ant{
     }
 
     fn start_search(&mut self) {
-    
+        self.food_ct = 0;
         let dest_x = {js_sys::Math::random() * 160.0 } as u32;
         let dest_y = {js_sys::Math::random() * 160.0} as u32;
         self.status = AntState::Searching(dest_x, dest_y);
         log!("NEW RANDOM DEST:{dest_x}, {dest_y}");
-        self.position = self.home;
+        self.pos = self.home;
         self.goto(dest_x,dest_y);
     }
     fn calculate_slope(&mut self) -> Option<f32> {
     // determines a static-ish slope depending on antstate that will be compared to determine ant's next move every tick
     // gives slope to a random food when searching, and home when home
         match self.status {
-            AntState::Returning(x,y, _ ) => {
+            AntState::Returning(x,y) => {
                 let slope = (self.home.0 as f32 - y as f32)  / (self.home.1 as f32 - x as f32);
                 Some(slope)
             },
             AntState::Searching(x, y) => {
                 let slope = (y as f32 - self.home.0 as f32) / (x as f32 - self.home.1 as f32);
                 Some(slope)
+            },
+            AntState::Wandering(_, _ ) => {
+                panic!("Something went wrong! Ant doesn't need to calculate slope in current state");
             }
+            // Otherwise, calculate the slope and wrap it in Some 
         }
-            // Otherwise, calculate the slope and wrap it in Some
-        
     }
-    
+    pub fn found_food(&mut self, row: &u32, col: &u32) {
+    self.food_ct += 1;
+
+    match self.status {
+        AntState::Searching(_, _) => {
+            // If the ant finds food while searching, it should start wandering.
+            log!("Ant found food, starting to wander.");
+            self.status = AntState::Wandering(*row, *col);
+            self.wander(row, col);
+        },
+        AntState::Wandering(_, _) => {
+            // If already wandering and the food count has not reached the limit, keep wandering.
+            self.food_ct += 1;
+        },
+        AntState::Returning(_, _) => {
+            // If the ant is already returning, ignore additional food.
+            log!("Ant is returning home and will ignore additional food.");
+        },
+    }
+}
+
+    pub fn wander(&mut self, row : &u32, col: &u32) {
+        let chance_to_stop : u32 = {js_sys::Math::random() * 100.0} as u32;
+        if chance_to_stop == 1{
+            self.status = AntState::Returning(*row, *col);
+            self.return_home(*row, *col);
+            log!("STOPPED WANDERING");
+            return;
+        }
+        match js_sys::Math::random() {
+            ( 0.0..=0.25) => {
+                self.update_position(self.pos.0+1, self.pos.1);
+                // Example movement logic: move randomly
+                // Note: Implement actual logic for moving towards food or exploring
+            },
+            ( 0.26..=0.5) => {
+                self.update_position(self.pos.0-1, self.pos.1);
+
+            },
+            ( 0.51..=0.75) => {
+                self.update_position(self.pos.0, self.pos.1+1);
+
+                // Example movement logic: move randomly
+                // Note: Implement actual logic for moving towards food or exploring
+            },
+            ( 0.76..=1.0) => {
+                self.update_position(self.pos.0, self.pos.1-1);
+            },
+            _ => {}
+        }
+    }
     pub fn calculate_current_slope(&mut self, test_position: (u32, u32)) -> Option<f32> {
         // determines a slope given a test posititon and implicit destination
             // this slope is used to compare with the static-ish slope to calculate the best move given 
@@ -54,13 +109,17 @@ impl Ant{
             None
         } else {
             match self.status {
-                AntState::Returning(_,_, _ ) => {
+                AntState::Returning(_,_) => {
                     let slope = (self.home.0 as f32 - curr_y as f32)  / (self.home.1 as f32 - curr_x as f32);
                     Some(slope)
                 },
                 AntState::Searching(x, y) => {
                     let slope = (y as f32 - curr_y as f32) / (x as f32 - curr_x as f32);
                     Some(slope)
+                },
+                AntState::Wandering(_,_ ) => {
+                    panic!("Something went wrong! Ant doesn't need to calculate slope in current state");
+
                 }
             }
             // Otherwise, calculate the slope and wrap it in Some
@@ -74,13 +133,12 @@ impl Ant{
 
     fn get_current_distance_to(&mut self, x: &u32, y: &u32) -> u32 {
         
-        let current_distance_squared : u32 = (x  - self.position.0 ).pow(2) + (y  - self.position.1 ).pow(2);
+        let current_distance_squared : u32 = (x  - self.pos.0 ).pow(2) + (y  - self.pos.1 ).pow(2);
         current_distance_squared
     }
-
     pub fn goto(&mut self, x: u32, y: u32) {
-        let pos_x = self.position.0 ;
-        let pos_y = self.position.1 ;
+        let pos_x = self.pos.0 ;
+        let pos_y = self.pos.1 ;
         // gets ant out of the house
 
         // gets slope and handles error
@@ -92,7 +150,7 @@ impl Ant{
             None => {
                 // Slope calculation failed (e.g., division by zero), ant teleport home for now..
                 log!("SLOPE CALCULATION FAILED");
-                self.position = self.home;
+                self.pos = self.home;
                 self.start_search();
                 return;
             }
@@ -109,7 +167,7 @@ impl Ant{
 
         if current_distance <= 2.0 {
             log!("ANT ARRIVED AT RANDOM POS");
-            self.status = AntState::Returning(x, y, false);
+            self.status = AntState::Returning(x, y);
             self.return_home(x, y);
             return;
         }
@@ -152,15 +210,15 @@ impl Ant{
         }
 
         // Update the ant's position
-        self.position = (new_x, new_y);    
+        self.pos = (new_x, new_y);    
     }
     pub fn get_index (&mut self) -> usize{
-        return (self.position.0 * UNIV_SIZE + self.position.1) as usize;
+        return (self.pos.0 * UNIV_SIZE + self.pos.1) as usize;
     }
 
     pub fn return_home(&mut self, x: u32, y:u32) {
-        let pos_x = self.position.0;
-        let pos_y = self.position.1;
+        let pos_x = self.pos.0;
+        let pos_y = self.pos.1;
         // Change the ant's status to Searching if it is already at the origin
         if {self.home.0 - 1} <= pos_x && pos_x <= {self.home.0 + 1} && {self.home.1 - 1} <= pos_y && pos_y <= {self.home.1 + 1} {
             self.start_search();
@@ -188,7 +246,8 @@ impl Ant{
                 None => {
                     // Slope calculation failed (e.g., division by zero), ant teleport home for now..
                     log!("SLOPE CALCULATION FAILED");
-                    self.position = self.home;
+                    self.pos = self.home;
+                    self.update_position(self.home.0,self.home.1);
                     self.start_search();
                     return;
                 }
