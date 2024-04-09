@@ -5,7 +5,7 @@ This is a project where I am implementing an ant simulation using rust and web a
 **Desc:** Rust anthill with intelligent ant pathfinding
 
  *goals/todos:*
- - make food spawn in clusters
+ - make food spawn in *noisy* clusters 
   - refactor exploration:
       - ~~allow ants to carry more food~~
       - ~~after found initial food, explore surroundings~~
