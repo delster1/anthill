@@ -3,12 +3,14 @@ use std::fmt;
 use wasm_bindgen::prelude::*;
 use crate::log;
 use crate::utils;
-use crate::cell::Cell;
+use crate::cell::{Cell, CellType};
+use noise::{NoiseFn, Perlin};
 #[wasm_bindgen]
 pub struct Universe {
     width: u32,
     height : u32,
     cells: Vec<Cell>,
+    simple_cells: Vec<u8>,
     ants: Vec<Ant>
 }
 
@@ -16,12 +18,12 @@ impl fmt::Display for Universe {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for line in self.cells.as_slice().chunks(self.width as usize) {
             for &cell in line {
-                let symbol: char = match cell {
-                    Cell::Empty => '◻',
-                    Cell::Trail => '|',
-                    Cell::Searched => '0',
-                    Cell::Food => '🥞',
-                    Cell::Home => '⌂',
+                let symbol: char = match cell.cell_type {
+                    CellType::Empty => '◻',
+                    CellType::Trail => '|',
+                    CellType::Searched => '0',
+                    CellType::Food => '🥞',
+                    CellType::Home => '⌂',
                 };
                 write!(f, "{}", symbol)?;
             }
@@ -56,55 +58,56 @@ impl Universe {
                 
                 let idx = self.get_index(row, col);
                 let cell = self.cells[idx];
+                let current_cell_type = cell.cell_type;
                 for ant in &mut self.ants {
-                    if ant.pos.0 == row && ant.pos.1 == col && cell == Cell::Food{
+                    if ant.pos.0 == row && ant.pos.1 == col && current_cell_type == CellType::Food{
                         log!("Ant found food at ({},{})", ant.pos.1, ant.pos.0);  
                         ant.food_ct += 1;
                         ant.found_food(&row, &col);
-                        next[idx] = Cell::Empty;
-                    } else if ant.pos.0 + 1 == row && ant.pos.1 + 1 == col && cell == Cell::Food {
+                        next[idx] = Cell::build_empty_cell();
+                    } else if ant.pos.0 + 1 == row && ant.pos.1 + 1 == col && current_cell_type == CellType::Food {
                         ant.food_ct += 1;
                         ant.found_food(&row, &col);
-                        next[idx] = Cell::Empty;
+                        next[idx] = Cell::build_empty_cell();
                     }
-                    else if ant.pos.0 == row && ant.pos.1 + 1== col && cell == Cell::Food{
+                    else if ant.pos.0 == row && ant.pos.1 + 1== col && current_cell_type == CellType::Food{
                         log!("Ant found food at ({},{})", ant.pos.1 , ant.pos.0);  
                         ant.food_ct += 1;
                         ant.found_food(&row, &col);
-                        next[idx] = Cell::Empty;
-                    } else if ant.pos.0 + 1 == row && ant.pos.1  == col && cell == Cell::Food {
+                        next[idx] = Cell::build_empty_cell();
+                    } else if ant.pos.0 + 1 == row && ant.pos.1  == col && current_cell_type == CellType::Food {
                         log!("Ant found food at ({},{})", ant.pos.1 , ant.pos.0);  
                         ant.food_ct += 1;
                         ant.found_food(&row, &col);
-                        next[idx] = Cell::Empty;
+                        next[idx] = Cell::build_empty_cell();
                     }
-                    else if ant.pos.0  - 1== row && ant.pos.1 - 1== col && cell == Cell::Food{
+                    else if ant.pos.0  - 1== row && ant.pos.1 - 1== col && current_cell_type == CellType::Food{
                         log!("Ant found food at ({},{})", ant.pos.1, ant.pos.0);  
                         ant.food_ct += 1;
                         ant.found_food(&row, &col);
-                        next[idx] = Cell::Empty;
+                        next[idx] = Cell::build_empty_cell();
                     } 
-                    else if ant.pos.0 - 1== row && ant.pos.1 == col && cell == Cell::Food{
+                    else if ant.pos.0 - 1== row && ant.pos.1 == col && current_cell_type == CellType::Food{
                         log!("Ant found food at ({},{})", ant.pos.1, ant.pos.0);  
                         ant.food_ct += 1;
                         ant.found_food(&row, &col);
                         // ant.status = AntState::Wandering(row, col);
-                        next[idx] = Cell::Empty;
-                    } else if ant.pos.0  == row && ant.pos.1 - 1 == col && cell == Cell::Food {
+                        next[idx] = Cell::build_empty_cell();
+                    } else if ant.pos.0  == row && ant.pos.1 - 1 == col && current_cell_type == CellType::Food {
                         ant.food_ct += 1;
                         ant.found_food(&row, &col);
-                        next[idx] = Cell::Empty;
+                        next[idx] = Cell::build_empty_cell();
                     }
-                    else if ant.pos.0 - 1== row && ant.pos.1 + 1== col && cell == Cell::Food{
+                    else if ant.pos.0 - 1== row && ant.pos.1 + 1== col && current_cell_type == CellType::Food{
                         log!("Ant found food at ({},{})", ant.pos.1, ant.pos.0);  
                         ant.food_ct += 1;
                         ant.found_food(&row, &col);
-                        next[idx] = Cell::Empty;
-                    } else if ant.pos.0 + 1 == row && ant.pos.1 - 1 == col && cell == Cell::Food {
+                        next[idx] = Cell::build_empty_cell();
+                    } else if ant.pos.0 + 1 == row && ant.pos.1 - 1 == col && current_cell_type == CellType::Food {
                         log!("Ant found food at ({},{})", ant.pos.1 , ant.pos.0);  
-                        ant.food_ct += 1;
+                            ant.food_ct += 1;
                         ant.found_food(&row, &col);
-                        next[idx] = Cell::Empty;
+                        next[idx] = Cell::build_empty_cell();
                     }
                 }
 
@@ -121,7 +124,7 @@ impl Universe {
                 (AntState::Returning(x, y), 0) => {
 
                     let idx = ant.get_index();
-                    next[idx] = Cell::Searched;
+                    next[idx] = Cell::build_searched_cell();
                     log!("RETURNING WITHOUT FOOD");
                     ant.return_home(x, y);
                     
@@ -130,14 +133,14 @@ impl Universe {
                 (AntState::Returning(x, y), 1..) => {
 
                     let idx = ant.get_index();
-                    next[idx] = Cell::Trail;
+                    next[idx] = Cell::build_pheremone_cell(1.0);
                     ant.return_home(x, y);
                     
                     // Logic for returning home
                 },
                 (AntState::Wandering(x, y),_) => {
                     let idx = ant.get_index();
-                    next[idx] = Cell::Trail;
+                    next[idx] = Cell::build_pheremone_cell(1.0);
                     ant.wander(&x,&y);
                 },
                 (_,_) => {}
@@ -146,6 +149,8 @@ impl Universe {
             }
         }
         self.cells = next;
+        self.simple_cells = self.cells.iter().map(|cell| cell.cell_type as u8).collect();
+
     }
     
 
@@ -163,6 +168,15 @@ impl Universe {
         flat_positions.as_ptr()
     }
 
+
+    // fn make_food_clusters(&mut self, cells: Vec<Cell>) -> Vec<Cell> {
+        
+        
+    //     let new_cells = cells.iter().map(|i| {
+    //         js_sys::Math::random();
+    //     }).collect();
+    //     new_cells
+    // }
     // You might also need a method to get the number of ants to correctly iterate over the array in JS
     pub fn ants_count(&mut self) -> u32 {
         self.ants.len() as u32
@@ -176,50 +190,60 @@ impl Universe {
         self.height
     }
 
-    pub fn cells(&self) -> *const Cell {
-        self.cells.as_ptr()
+    pub fn cells(&self) -> *const u8 {
+        self.simple_cells.as_ptr()
     }
     pub fn render(&self) -> String {
         self.to_string()
     }
     pub fn new() -> Universe {
         utils::set_panic_hook();
-
+    
+        let perlin = Perlin::new(1); // Corrected constructor call (remove the '1')
+        let scale = 0.05;  // Adjust scale to zoom in or out of the noise pattern
+        let threshold = 0.5;  // Adjust threshold to increase/decrease food density
+    
         let width = 160;
         let height = 160;
-
-        let cells = (0..width * height)
-            .map(|i| {
-                if i % 12800 == 0 {
-                    Cell::Home
-                } else if js_sys::Math::random() < 0.01{
-                   Cell::Food
-                }
-                else {
-
-                    Cell::Empty
-                }
-            }).collect();
+    
+        let cells: Vec<Cell> = (0..width * height).map(|i| {
+            let x = (i % width) as f64 * scale;
+            let y = (i / width) as f64 * scale;
+            let noise_value = perlin.get([x, y, 0.0]);  // Use 3D noise for future flexibility
+            
+            let cell_type = if noise_value > threshold {
+                CellType::Food
+            } else if i % 12800 == 0 {  // Keep your home cells as originally designed
+                CellType::Home
+            } else {
+                CellType::Empty
+            };
+            Cell {
+                cell_type,
+                pheromone_level: 0.0,
+            }
+        }).collect();
+    
         let num_ants = 1;
+        let home_loc = (width / 2, height / 2);
         let mut ants = Vec::new();
-        let home_loc = (width / 2, height / 2); // Call the home_location function using self
         for _ in 0..num_ants {
-            let loc_x = (js_sys::Math::random() * 160.0) as u32;
-            let loc_y = (js_sys::Math::random() * 160.0) as u32;
-            log!("Ant spawned! Going to: ({loc_x},{loc_y}) ");
             ants.push(Ant {
-                pos: home_loc, // Set initial position if needed, or use loc_x, loc_y
-                status: AntState::Searching(loc_x,loc_y),
+                pos: home_loc,
+                status: AntState::Searching(js_sys::Math::random() as u32, js_sys::Math::random() as u32),
                 home: home_loc,
                 food_ct:  0,
             });
         }
+        let simple_cells = cells.iter().map(|cell| cell.cell_type as u8).collect();
 
         Universe {
             width, 
             height, 
             cells,
+            simple_cells,
             ants
         }
     }
+    
 }
