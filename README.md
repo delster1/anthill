@@ -5,13 +5,10 @@ This is a project where I am implementing an ant simulation using rust and web a
 **Desc:** Rust anthill with intelligent ant pathfinding
 
  *goals/todos:*
- - make food spawn in *noisy* clusters 
+ - track how much food an ant has for pheremone weight
   - refactor exploration:
-      - ~~allow ants to carry more food~~
-      - ~~after found initial food, explore surroundings~~
-      - ~~after certain num iterations, go home~~
       - weight path that returns home according to num food
-          - Figure out how implementation
+          - ~~Figure out how implementation~~
       - subsequent ants follow weighted path - see below
   - consider pathfinding implementation - avoiding traveled paths?
   - change from canvas to cooler renderer (emojis)
@@ -19,6 +16,7 @@ This is a project where I am implementing an ant simulation using rust and web a
 
  *stretch goals*
   - Huge world - (at least 800 x 800)
+  - different ant species, different ant homes?
   - Obstacles and better pathfinding
   - Multithreading for speed 💨
   - Different ant types? breeding?
@@ -30,6 +28,11 @@ This is a project where I am implementing an ant simulation using rust and web a
   - determine ant movement algorithm
   - figure out fast, efficient way to send data to wasm
   - figure out universe
+  - make food spawn in noisy clusters
+  - allow ants to carry more food
+  - explore surroundings once found initial food
+  - back-end for handing weighted squares
+  - 
 
 **To run:**
 ```
