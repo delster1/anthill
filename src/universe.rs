@@ -6,6 +6,7 @@ use crate::utils;
 use crate::cell::{Cell, CellType};
 use noise::{NoiseFn, Perlin};
 #[wasm_bindgen]
+#[derive(Clone)]
 pub struct Universe {
     width: u32,
     height : u32,
@@ -33,13 +34,12 @@ impl fmt::Display for Universe {
         Ok(())
     }
 }
-
 #[wasm_bindgen]
 impl Universe {
-
     fn get_index(&mut self, row : u32, col : u32) -> usize {
         return (row * self.width + col) as usize;
     }
+
     pub fn new_ant(&mut self) {
         let dest_x ={ js_sys::Math::random() * 80.0} as u32;
         let dest_y = {js_sys::Math::random() * 80.0} as u32;
@@ -48,76 +48,51 @@ impl Universe {
         self.ants.push(my_ant);
         log!("Created new ant going to {dest_x}, {dest_y}");
     }
+    fn is_cell_trail(&mut self, row: u32, col : u32)-> bool {
+        let idx = self.get_index(row, col);
 
+        self.cells[idx].cell_type == CellType::Trail
+    }
 
     pub fn tick(&mut self) {
         let mut next = self.cells.clone();
         for row in 0..self.width {
             for col in 0..self.height {
-
                 
                 let idx = self.get_index(row, col);
                 let cell = self.cells[idx];
                 let current_cell_type = cell.cell_type;
                 for ant in &mut self.ants {
-                    if ant.pos.0 == row && ant.pos.1 == col && current_cell_type == CellType::Food{
-                        log!("Ant found food at ({},{})", ant.pos.1, ant.pos.0);  
-                        ant.food_ct += 1;
-                        ant.found_food(&row, &col);
-                        next[idx] = Cell::build_empty_cell();
-                    } else if ant.pos.0 + 1 == row && ant.pos.1 + 1 == col && current_cell_type == CellType::Food {
-                        ant.food_ct += 1;
-                        ant.found_food(&row, &col);
-                        next[idx] = Cell::build_empty_cell();
-                    }
-                    else if ant.pos.0 == row && ant.pos.1 + 1== col && current_cell_type == CellType::Food{
-                        log!("Ant found food at ({},{})", ant.pos.1 , ant.pos.0);  
-                        ant.food_ct += 1;
-                        ant.found_food(&row, &col);
-                        next[idx] = Cell::build_empty_cell();
-                    } else if ant.pos.0 + 1 == row && ant.pos.1  == col && current_cell_type == CellType::Food {
-                        log!("Ant found food at ({},{})", ant.pos.1 , ant.pos.0);  
-                        ant.food_ct += 1;
-                        ant.found_food(&row, &col);
-                        next[idx] = Cell::build_empty_cell();
-                    }
-                    else if ant.pos.0  - 1== row && ant.pos.1 - 1== col && current_cell_type == CellType::Food{
-                        log!("Ant found food at ({},{})", ant.pos.1, ant.pos.0);  
-                        ant.food_ct += 1;
-                        ant.found_food(&row, &col);
-                        next[idx] = Cell::build_empty_cell();
-                    } 
-                    else if ant.pos.0 - 1== row && ant.pos.1 == col && current_cell_type == CellType::Food{
-                        log!("Ant found food at ({},{})", ant.pos.1, ant.pos.0);  
-                        ant.food_ct += 1;
-                        ant.found_food(&row, &col);
-                        // ant.status = AntState::Wandering(row, col);
-                        next[idx] = Cell::build_empty_cell();
-                    } else if ant.pos.0  == row && ant.pos.1 - 1 == col && current_cell_type == CellType::Food {
-                        ant.food_ct += 1;
-                        ant.found_food(&row, &col);
-                        next[idx] = Cell::build_empty_cell();
-                    }
-                    else if ant.pos.0 - 1== row && ant.pos.1 + 1== col && current_cell_type == CellType::Food{
-                        log!("Ant found food at ({},{})", ant.pos.1, ant.pos.0);  
-                        ant.food_ct += 1;
-                        ant.found_food(&row, &col);
-                        next[idx] = Cell::build_empty_cell();
-                    } else if ant.pos.0 + 1 == row && ant.pos.1 - 1 == col && current_cell_type == CellType::Food {
-                        log!("Ant found food at ({},{})", ant.pos.1 , ant.pos.0);  
-                            ant.food_ct += 1;
-                        ant.found_food(&row, &col);
-                        next[idx] = Cell::build_empty_cell();
-                    }
-                }
+                    // FOR EACH ANT, update universe and antstate depending on universe
 
+                    if ant.pos.0 == row && ant.pos.1 == col && current_cell_type == CellType::Food{
+
+                        next[idx] = ant.process_cell(cell, &row, &col);
+                    } 
+                }
             }
+
+            
         }
+        let mut cloned_self = self.clone();
+
         for ant in &mut self.ants {
+            let cells_copy = self.cells.clone();
+            let possible_moves: [(i32, i32); 8] = [(1,0),(1,1),(0,1),(-1,1),(-1,0),(-1,-1),(0,-1),((1,-1))];
+            let perimeter_cells : Vec<(u32, u32, Cell)> = possible_moves.iter().map(|(x,y)| {
+                let x_pos = (ant.pos.0 as i32 + x) as u32 ;
+                let y_pos = (ant.pos.1 as i32 + y) as u32 ;
+
+                let x_pos = x_pos as u32;
+                let y_pos = y_pos as u32;
+                let idx = cloned_self.get_index((x_pos as i32 + x) as u32, (y_pos as i32 + y) as u32);
+                (x_pos, y_pos as u32, cells_copy[idx])
+            }).collect();
             // Implement logic based on ant state
             match (ant.status, ant.food_ct) {
                 (AntState::Searching(x , y), _) => {
-                    ant.goto(x, y);
+                    
+                    ant.goto(x, y, perimeter_cells);
                     // ant goes to it's implicitly defined path
                 },
 
@@ -133,7 +108,7 @@ impl Universe {
                 (AntState::Returning(x, y), 1..) => {
 
                     let idx = ant.get_index();
-                    next[idx] = Cell::build_pheremone_cell(1.0);
+                    next[idx] = Cell::build_pheremone_cell(ant.food_ct as f64 * 1.0);
                     ant.return_home(x, y);
                     
                     // Logic for returning home
@@ -151,6 +126,7 @@ impl Universe {
         self.cells = next;
         self.simple_cells = self.cells.iter().map(|cell| cell.cell_type as u8).collect();
 
+        
     }
     
 
@@ -199,8 +175,8 @@ impl Universe {
     pub fn new() -> Universe {
         utils::set_panic_hook();
     
-        let perlin = Perlin::new(1); // Corrected constructor call (remove the '1')
-        let scale = 0.05;  // Adjust scale to zoom in or out of the noise pattern
+        let perlin = Perlin::new((js_sys::Math::random() * 100.0) as u32); // Corrected constructor call (remove the '1')
+        let scale = 0.09;  // Adjust scale to zoom in or out of the noise pattern
         let threshold = 0.5;  // Adjust threshold to increase/decrease food density
     
         let width = 160;
@@ -230,7 +206,7 @@ impl Universe {
         for _ in 0..num_ants {
             ants.push(Ant {
                 pos: home_loc,
-                status: AntState::Searching(js_sys::Math::random() as u32, js_sys::Math::random() as u32),
+                status: AntState::Searching(js_sys::Math::random() as u32 * width, js_sys::Math::random() as u32 * height),
                 home: home_loc,
                 food_ct:  0,
             });

@@ -7,6 +7,7 @@ pub struct Cell {
     pub pheromone_level: f64,  // This field is only used when cell_type is Trail
 }
 #[wasm_bindgen]
+
 #[repr(u8)]
 #[derive(Clone,Copy, Debug, PartialEq, Eq)]
 pub enum CellType {
