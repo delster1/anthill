@@ -197,11 +197,14 @@
                 self.status = AntState::Returning(x, y);
                 return;
             }
-        
+            let pos = (self.pos.0, self.pos.1);
             let mut best_move: Option<(u32, u32)> = None;
             let mut min_distance = std::f32::MAX;
             let mut min_delta = std::f32::MAX;
-        
+            let home = self.home;
+            let mut distance_from_home : u32 = self.get_distance_from_to(&pos.1, &pos.0, &home.1, &home.0);
+
+
             let slope = match self.calculate_slope() {
                 Some(slope) => slope,
                 None => {
@@ -212,17 +215,21 @@
                 }
             };
             if self.is_near_home() {
-                log!("ANT IN HOME, NEED TO GET OUT");
                 for &(new_x, new_y, ref cell) in &perimeter_cells {
                     let new_slope = self.calculate_current_slope((new_x, new_y)).unwrap_or(f32::MAX);
                     let distance = self.get_distance_from_to(&new_x, &new_y, &x, &y) as f32;
+                    let new_distance_from_home : u32 = self.get_distance_from_to(&new_y, &new_x, &home.1, &home.0);
                     let delta = (slope - new_slope).abs();
-
-                    if delta < min_delta && distance < min_distance{
-                        min_delta = delta;
+                    
+                
+                    if distance < min_distance && delta < min_delta  && new_distance_from_home >= distance_from_home{
+                        distance_from_home = new_distance_from_home;
                         min_distance = distance;
+                        min_delta = delta;
                         best_move = Some((new_x, new_y));
+                        log!("ANT CLOSE TO HOME FOUND BEST MOVE {:?}", best_move);
                     }
+
                 }
             }
             else {
@@ -230,9 +237,12 @@
                 let new_slope = self.calculate_current_slope((new_x, new_y)).unwrap_or(f32::MAX);
                 let distance = self.get_distance_from_to(&new_x, &new_y, &x, &y) as f32;
                 let delta = (slope - new_slope).abs();
+                let new_distance_from_home : u32 = self.get_distance_from_to(&new_y, &new_x, &home.1, &home.0);
+
                 match cell.cell_type {
-                    CellType::Empty | CellType::Trail if distance < min_distance && delta < min_delta => {
+                    CellType::Empty | CellType::Trail if distance < min_distance && delta < min_delta && new_distance_from_home > distance_from_home=> {
                         min_distance = distance;
+                        distance_from_home = new_distance_from_home;
                         min_delta = delta;
                         best_move = Some((new_x, new_y));
                         log!("FOUND BEST MOVE {:?}", best_move);
@@ -248,7 +258,7 @@
                 
                 
             }
-            }   
+            }
             if let Some((move_x, move_y)) = best_move {
                 self.update_position(move_x, move_y);
             } else {
