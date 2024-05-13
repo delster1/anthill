@@ -1,3 +1,5 @@
+// TODO: 
+// - FIX SLope calculation errror when ant is at y=0
     use std::io::Empty;
 
     use noise::core::perlin::perlin_3d;
@@ -32,9 +34,11 @@
             let dest_x = {js_sys::Math::random() * 155.0 } as u32 + 2;
             let dest_y = {js_sys::Math::random() * 155.0} as u32 + 2;
             self.status = AntState::Searching(dest_x, dest_y);
-            log!("NEW RANDOM DEST:{dest_x}, {dest_y}");
+            log!("NEW RANDOM DEST: (X:{dest_x},Y: {dest_y}");
+            let mut searched_cells: Vec<(u32, u32, Cell)> = vec![];
+
             self.pos = self.home;
-            self.goto(dest_x,dest_y, vec![]);
+            self.wander(&dest_x,&dest_y, &searched_cells);
         }
         pub fn process_cell(&mut self, cell_to_process : Cell, row:  &u32, col : &u32) -> Cell {
 
@@ -50,13 +54,13 @@
                     self.food_ct += 1;
                     self.found_food(&row, &col);
                     Cell {
-                        pheromone_level : 0.0,
+                        pheromone_level : 1.0,
                         cell_type : CellType::Empty,
                     }
                 },
                 CellType::Trail => {
                     Cell {
-                        pheromone_level : 0.0,
+                        pheromone_level : cell_to_process.pheromone_level,
                         cell_type : CellType::Trail,
                     }
                 },
@@ -93,57 +97,76 @@
                 // Otherwise, calculate the slope and wrap it in Some 
             }
         }
-        pub fn found_food(&mut self, row: &u32, col: &u32) {
+    pub fn found_food(&mut self, row: &u32, col: &u32) {
         self.food_ct += 1;
 
         match self.status {
             AntState::Searching(_, _) => {
                 // If the ant finds food while searching, it should start wandering.
                 log!("Ant found food, starting to wander.");
-                self.status = AntState::Wandering(*row, *col);
-                self.wander(row, col);
+                self.status = AntState::Returning(*row, *col);
+                self.return_home(*row,* col);
             },
             AntState::Wandering(_, _) => {
                 // If already wandering and the food count has not reached the limit, keep wandering.
+                log!("Ant found food, returning home");
                 self.food_ct += 1;
+                self.status = AntState::Returning(*row, *col);
+                self.return_home(*row,* col);
             },
             AntState::Returning(_, _) => {
                 // If the ant is already returning, ignore additional food.
-                log!("Ant is returning home and will ignore additional food.");
+                self.food_ct += 1;
+                log!("Ant is returning home and will ignore additional food. at:({:?},{:?})", self.pos.0, self.pos.1);
             },
         }
     }
 
-        pub fn wander(&mut self, row : &u32, col: &u32) {
-            let chance_to_stop : u32 = {js_sys::Math::random() * 100.0} as u32;
-            if chance_to_stop <= 20{
+        pub fn wander(&mut self, row : &u32, col: &u32, perimeter_cells: &Vec<(u32, u32, Cell)>) {
+            let homex = self.home.0;
+            let homey = self.home.1;
+            let mut searched_cells: Vec<(u32, u32)> = vec![];
+            let new_move : (u32, u32);
+            let current_distance = self.get_current_distance_to(&homex, &homey) as f32;
+            for &(new_x, new_y, ref cell) in perimeter_cells {
+                let test_distance = self.get_distance_from_to(&new_x, &new_y, &homex, &homey) as f32;
 
-                self.status = AntState::Returning(self.pos.0, self.pos.1);
-                self.return_home(self.pos.0, self.pos.1);
-                log!("STOPPED WANDERING");
-                return;
+                match cell.cell_type {
+                    CellType::Trail  if test_distance > current_distance && cell.pheromone_level > 0.1 => {
+                        self.update_position(new_x, new_y);
+                        return;
+                    },
+                    CellType::Food => {}, // this can't happen
+                    CellType::Searched => {
+                        searched_cells.push((*row, *col));
+                    }, // Do nothing if the cell is already searched
+                    _ => {} // Ignore other cell types
+                }
             }
             match js_sys::Math::random() {
-                ( 0.0..=0.25) => {
-                    self.update_position(self.pos.0+1, self.pos.1);
-                    // Example movement logic: move randomly
-                    // Note: Implement actual logic for moving towards food or exploring
+                (0.0..=0.25) => {
+                    // Randomly move right
+                    new_move = (self.pos.0 + 1, self.pos.1);
                 },
-                ( 0.26..=0.5) => {
-                    self.update_position(self.pos.0-1, self.pos.1);
-
+                (0.25..=0.5) => {
+                    // Randomly move left
+                    new_move = (self.pos.0 - 1, self.pos.1);
                 },
-                ( 0.51..=0.75) => {
-                    self.update_position(self.pos.0, self.pos.1+1);
-
-                    // Example movement logic: move randomly
-                    // Note: Implement actual logic for moving towards food or exploring
+                (0.5..=0.75) => {
+                    // Randomly move down
+                    new_move = (self.pos.0, self.pos.1 + 1);
                 },
-                ( 0.76..=1.0) => {
-                    self.update_position(self.pos.0, self.pos.1-1);
+                (0.75..=1.0) => {
+                    // Randomly move up
+                    new_move = (self.pos.0, self.pos.1 - 1);
                 },
-                _ => {}
+                _ => {
+                    // Default case should theoretically never be hit since Math::random() returns [0, 1)
+                    new_move = (self.home.0, self.home.1);
+                }
             }
+
+            self.update_position(new_move.0,new_move.1);
         }
         pub fn calculate_current_slope(&mut self, test_position: (u32, u32)) -> Option<f32> {
             // determines a slope given a test posititon and implicit destination
@@ -186,85 +209,7 @@
             let current_distance_squared : u32 = (x  - self.pos.0 ).pow(2) + (y  - self.pos.1 ).pow(2);
             current_distance_squared
         }
-        pub fn goto(&mut self, x: u32, y: u32, perimeter_cells: Vec<(u32, u32, Cell)>) {
-            if self.status != AntState::Searching(x,y) {
-                panic!("Something went wrong here, antstate should be searching")
-            }
-            let current_distance = self.get_current_distance_to(&x, &y) as f32;
-        
-            if current_distance <= 2.0 {
-                log!("ANT ARRIVED AT TARGET POSITION");
-                self.status = AntState::Returning(x, y);
-                return;
-            }
-            let pos = (self.pos.0, self.pos.1);
-            let mut best_move: Option<(u32, u32)> = None;
-            let mut min_distance = std::f32::MAX;
-            let mut min_delta = std::f32::MAX;
-            let home = self.home;
-            let mut distance_from_home : u32 = self.get_distance_from_to(&pos.1, &pos.0, &home.1, &home.0);
-
-
-            let slope = match self.calculate_slope() {
-                Some(slope) => slope,
-                None => {
-                    log!("SLOPE CALCULATION FAILED, teleporting ant home.");
-                    self.pos = self.home;
-                    self.start_search();
-                    return;
-                }
-            };
-            if self.is_near_home() {
-                for &(new_x, new_y, ref cell) in &perimeter_cells {
-                    let new_slope = self.calculate_current_slope((new_x, new_y)).unwrap_or(f32::MAX);
-                    let distance = self.get_distance_from_to(&new_x, &new_y, &x, &y) as f32;
-                    let new_distance_from_home : u32 = self.get_distance_from_to(&new_y, &new_x, &home.1, &home.0);
-                    let delta = (slope - new_slope).abs();
-                    
-                
-                    if distance < min_distance && delta < min_delta  && new_distance_from_home >= distance_from_home{
-                        distance_from_home = new_distance_from_home;
-                        min_distance = distance;
-                        min_delta = delta;
-                        best_move = Some((new_x, new_y));
-                        log!("ANT CLOSE TO HOME FOUND BEST MOVE {:?}", best_move);
-                    }
-
-                }
-            }
-            else {
-            for &(new_x, new_y, ref cell) in &perimeter_cells {
-                let new_slope = self.calculate_current_slope((new_x, new_y)).unwrap_or(f32::MAX);
-                let distance = self.get_distance_from_to(&new_x, &new_y, &x, &y) as f32;
-                let delta = (slope - new_slope).abs();
-                let new_distance_from_home : u32 = self.get_distance_from_to(&new_y, &new_x, &home.1, &home.0);
-
-                match cell.cell_type {
-                    CellType::Empty | CellType::Trail if distance < min_distance && delta < min_delta && new_distance_from_home > distance_from_home=> {
-                        min_distance = distance;
-                        distance_from_home = new_distance_from_home;
-                        min_delta = delta;
-                        best_move = Some((new_x, new_y));
-                        log!("FOUND BEST MOVE {:?}", best_move);
-
-                    },
-                    CellType::Food => {
-                        self.found_food(&x, &y);
-                        return; // Stop further processing if food is found
-                    },
-                    CellType::Searched => {}, // Do nothing if the cell is already searched
-                    _ => {} // Ignore other cell types
-                }
-                
-                
-            }
-            }
-            if let Some((move_x, move_y)) = best_move {
-                self.update_position(move_x, move_y);
-            } else {
-                log!("NO VALID MOVE FOUND, ant might be stuck.");
-            }
-        }
+ 
 
         fn update_position(&mut self, new_x: u32, new_y: u32) {
             // Get current ant position

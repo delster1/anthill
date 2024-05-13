@@ -63,12 +63,35 @@ impl Universe {
                 let cell = self.cells[idx];
                 let current_cell_type = cell.cell_type;
                 for ant in &mut self.ants {
-                    // FOR EACH ANT, update universe and antstate depending on universe
+                    // FOR EACH ANT, update universe and antstate depending on cell
 
                     if ant.pos.0 == row && ant.pos.1 == col && current_cell_type == CellType::Food{
 
                         next[idx] = ant.process_cell(cell, &row, &col);
+                    }
+                    if ant.pos.0 + 1 == row && ant.pos.1 == col && current_cell_type == CellType::Food{
+
+                        next[idx] = ant.process_cell(cell, &row, &col);
+                    }
+                    if ant.pos.0 - 1 == row && ant.pos.1 == col && current_cell_type == CellType::Food{
+
+                        next[idx] = ant.process_cell(cell, &row, &col);
+                    }
+                    if ant.pos.0 == row && ant.pos.1 + 1 == col && current_cell_type == CellType::Food{
+
+                        next[idx] = ant.process_cell(cell, &row, &col);
+                    }
+                    if ant.pos.0 == row && ant.pos.1 - 1 == col && current_cell_type == CellType::Food{
+
+                        next[idx] = ant.process_cell(cell, &row, &col);
                     } 
+
+                }
+                next[idx].pheromone_level -= 0.01;
+                if next[idx].pheromone_level < 0.5 && next[idx].cell_type == CellType::Trail {
+                    next[idx].cell_type = CellType::Empty;
+                    next[idx].pheromone_level = 0.0;
+
                 }
             }
 
@@ -92,7 +115,7 @@ impl Universe {
             match (ant.status, ant.food_ct) {
                 (AntState::Searching(x , y), _) => {
                     
-                    ant.goto(x, y, perimeter_cells);
+                    ant.wander(&x, &y, &perimeter_cells);
                     // ant goes to it's implicitly defined path
                 },
 
@@ -116,7 +139,7 @@ impl Universe {
                 (AntState::Wandering(x, y),_) => {
                     let idx = ant.get_index();
                     next[idx] = Cell::build_pheremone_cell(1.0);
-                    ant.wander(&x,&y);
+                    ant.wander(&x,&y, &perimeter_cells);
                 },
                 (_,_) => {}
 
