@@ -24,6 +24,7 @@ impl Cell {
         self.cell_type as u8
     }
     pub fn build_pheremone_cell(new_pheremone_level : f64) -> Cell{
+        
         Cell {
             cell_type : CellType::Trail,
             pheromone_level : new_pheremone_level,

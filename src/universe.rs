@@ -39,7 +39,9 @@ impl Universe {
     fn get_index(&mut self, row : u32, col : u32) -> usize {
         return (row * self.width + col) as usize;
     }
-
+    pub fn is_within_bounds(&self, x: u32, y: u32) -> bool {
+        x < self.width && y < self.height
+    }
     pub fn new_ant(&mut self) {
         let dest_x ={ js_sys::Math::random() * 80.0} as u32;
         let dest_y = {js_sys::Math::random() * 80.0} as u32;
@@ -67,28 +69,13 @@ impl Universe {
 
                     if ant.pos.0 == row && ant.pos.1 == col && current_cell_type == CellType::Food{
 
-                        next[idx] = ant.process_cell(cell, &row, &col);
+                        next[idx] = ant.process_cell(cell, row, col);
                     }
-                    if ant.pos.0 + 1 == row && ant.pos.1 == col && current_cell_type == CellType::Food{
-
-                        next[idx] = ant.process_cell(cell, &row, &col);
-                    }
-                    if ant.pos.0 - 1 == row && ant.pos.1 == col && current_cell_type == CellType::Food{
-
-                        next[idx] = ant.process_cell(cell, &row, &col);
-                    }
-                    if ant.pos.0 == row && ant.pos.1 + 1 == col && current_cell_type == CellType::Food{
-
-                        next[idx] = ant.process_cell(cell, &row, &col);
-                    }
-                    if ant.pos.0 == row && ant.pos.1 - 1 == col && current_cell_type == CellType::Food{
-
-                        next[idx] = ant.process_cell(cell, &row, &col);
-                    } 
+                    
 
                 }
-                next[idx].pheromone_level -= 0.01;
-                if next[idx].pheromone_level < 0.5 && next[idx].cell_type == CellType::Trail {
+                next[idx].pheromone_level -= 0.05;
+                if next[idx].pheromone_level < 0.5 && (next[idx].cell_type == CellType::Trail)  {
                     next[idx].cell_type = CellType::Empty;
                     next[idx].pheromone_level = 0.0;
 
@@ -102,45 +89,45 @@ impl Universe {
         for ant in &mut self.ants {
             let cells_copy = self.cells.clone();
             let possible_moves: [(i32, i32); 8] = [(1,0),(1,1),(0,1),(-1,1),(-1,0),(-1,-1),(0,-1),((1,-1))];
-            let perimeter_cells : Vec<(u32, u32, Cell)> = possible_moves.iter().map(|(x,y)| {
-                let x_pos = (ant.pos.0 as i32 + x) as u32 ;
-                let y_pos = (ant.pos.1 as i32 + y) as u32 ;
-
-                let x_pos = x_pos as u32;
-                let y_pos = y_pos as u32;
-                let idx = cloned_self.get_index((x_pos as i32 + x) as u32, (y_pos as i32 + y) as u32);
-                (x_pos, y_pos as u32, cells_copy[idx])
-            }).collect();
+            let perimeter_cells: Vec<(u32, u32, Cell)> = possible_moves.iter()
+                .filter_map(|(dx, dy)| {
+                    let new_x = (ant.pos.0 as i32 + dx) as u32;
+                    let new_y = (ant.pos.1 as i32 + dy) as u32;
+                    if cloned_self.is_within_bounds(new_x, new_y) {
+                        let idx = cloned_self.get_index(new_x, new_y);
+                        Some((new_x, new_y, cloned_self.cells[idx].clone()))
+                    } else {
+                        None
+                    }
+                })
+            .collect();
             // Implement logic based on ant state
+            let current_index = cloned_self.get_index(ant.pos.0, ant.pos.1);
+            let current_cell = cloned_self.cells[current_index];
             match (ant.status, ant.food_ct) {
                 (AntState::Searching(x , y), _) => {
-                    
+                    perimeter_cells.clone().into_iter().for_each(|(row, col, cell)| {
+                        let index = cloned_self.get_index(row, col);
+                        next[index] = ant.process_cell(cell, row, col);
+                    });
                     ant.wander(&x, &y, &perimeter_cells);
                     // ant goes to it's implicitly defined path
                 },
 
-                (AntState::Returning(x, y), 0) => {
-
-                    let idx = ant.get_index();
-                    next[idx] = Cell::build_searched_cell();
-                    log!("RETURNING WITHOUT FOOD");
-                    ant.return_home(x, y);
-                    
-                    // Logic for returning home
-                },
+                (AntState::Returning(x, y), 0) => {}, // this is impossible, ants cannot return w/o food
                 (AntState::Returning(x, y), 1..) => {
 
                     let idx = ant.get_index();
                     next[idx] = Cell::build_pheremone_cell(ant.food_ct as f64 * 1.0);
+                    perimeter_cells.clone().into_iter().for_each(|(row, col, cell)| {
+                        let index = cloned_self.get_index(row, col);
+                        next[index] = ant.process_cell(cell, row, col);
+                    });
                     ant.return_home(x, y);
                     
                     // Logic for returning home
                 },
-                (AntState::Wandering(x, y),_) => {
-                    let idx = ant.get_index();
-                    next[idx] = Cell::build_pheremone_cell(1.0);
-                    ant.wander(&x,&y, &perimeter_cells);
-                },
+
                 (_,_) => {}
 
                 // Handle other states as needed
@@ -223,7 +210,7 @@ impl Universe {
             }
         }).collect();
     
-        let num_ants = 1;
+        let num_ants = 100;
         let home_loc = (width / 2, height / 2);
         let mut ants = Vec::new();
         for _ in 0..num_ants {

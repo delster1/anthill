@@ -21,7 +21,6 @@
     pub enum AntState {
         Searching(u32, u32),
         Returning(u32, u32),
-        Wandering(u32, u32)
     }
 
     impl Ant{
@@ -40,7 +39,7 @@
             self.pos = self.home;
             self.wander(&dest_x,&dest_y, &searched_cells);
         }
-        pub fn process_cell(&mut self, cell_to_process : Cell, row:  &u32, col : &u32) -> Cell {
+        pub fn process_cell(&mut self, cell_to_process : Cell, row:  u32, col : u32) -> Cell {
 
             let current_cell_type = cell_to_process.cell_type;
             match current_cell_type {
@@ -55,7 +54,7 @@
                     self.found_food(&row, &col);
                     Cell {
                         pheromone_level : 1.0,
-                        cell_type : CellType::Empty,
+                        cell_type : CellType::Trail,
                     }
                 },
                 CellType::Trail => {
@@ -91,9 +90,7 @@
                     let slope = (y as f32 - self.home.0 as f32) / (x as f32 - self.home.1 as f32);
                     Some(slope)
                 },
-                AntState::Wandering(_, _ ) => {
-                    panic!("Something went wrong! Ant doesn't need to calculate slope in current state");
-                }
+                
                 // Otherwise, calculate the slope and wrap it in Some 
             }
         }
@@ -104,13 +101,6 @@
             AntState::Searching(_, _) => {
                 // If the ant finds food while searching, it should start wandering.
                 log!("Ant found food, starting to wander.");
-                self.status = AntState::Returning(*row, *col);
-                self.return_home(*row,* col);
-            },
-            AntState::Wandering(_, _) => {
-                // If already wandering and the food count has not reached the limit, keep wandering.
-                log!("Ant found food, returning home");
-                self.food_ct += 1;
                 self.status = AntState::Returning(*row, *col);
                 self.return_home(*row,* col);
             },
@@ -136,7 +126,11 @@
                         self.update_position(new_x, new_y);
                         return;
                     },
-                    CellType::Food => {}, // this can't happen
+                    CellType::Food => {
+                        // self.status = AntState::Returning(*row, *col);
+                        // self.food_ct += 1;
+                        // self.found_food(&row, &col);
+                    }, 
                     CellType::Searched => {
                         searched_cells.push((*row, *col));
                     }, // Do nothing if the cell is already searched
@@ -186,10 +180,6 @@
                         let slope = (y as f32 - curr_y as f32) / (x as f32 - curr_x as f32);
                         Some(slope)
                     },
-                    AntState::Wandering(_,_ ) => {
-                        panic!("Something went wrong! Ant doesn't need to calculate slope in current state");
-
-                    }
                 }
                 // Otherwise, calculate the slope and wrap it in Some
             }
