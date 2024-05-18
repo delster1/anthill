@@ -50,11 +50,6 @@ impl Universe {
         self.ants.push(my_ant);
         log!("Created new ant going to {dest_x}, {dest_y}");
     }
-    fn is_cell_trail(&mut self, row: u32, col : u32)-> bool {
-        let idx = self.get_index(row, col);
-
-        self.cells[idx].cell_type == CellType::Trail
-    }
 
     pub fn tick(&mut self) {
         let mut next = self.cells.clone();
@@ -62,19 +57,7 @@ impl Universe {
             for col in 0..self.height {
                 
                 let idx = self.get_index(row, col);
-                let cell = self.cells[idx];
-                let current_cell_type = cell.cell_type;
-                for ant in &mut self.ants {
-                    // FOR EACH ANT, update universe and antstate depending on cell
-
-                    if ant.pos.0 == row && ant.pos.1 == col && current_cell_type == CellType::Food{
-
-                        next[idx] = ant.process_cell(cell, row, col);
-                    }
-                    
-
-                }
-                next[idx].pheromone_level -= 0.05;
+                next[idx].pheromone_level -= 0.12;
                 if next[idx].pheromone_level < 0.5 && (next[idx].cell_type == CellType::Trail)  {
                     next[idx].cell_type = CellType::Empty;
                     next[idx].pheromone_level = 0.0;
@@ -87,7 +70,6 @@ impl Universe {
         let mut cloned_self = self.clone();
 
         for ant in &mut self.ants {
-            let cells_copy = self.cells.clone();
             let possible_moves: [(i32, i32); 8] = [(1,0),(1,1),(0,1),(-1,1),(-1,0),(-1,-1),(0,-1),((1,-1))];
             let perimeter_cells: Vec<(u32, u32, Cell)> = possible_moves.iter()
                 .filter_map(|(dx, dy)| {
@@ -102,35 +84,27 @@ impl Universe {
                 })
             .collect();
             // Implement logic based on ant state
-            let current_index = cloned_self.get_index(ant.pos.0, ant.pos.1);
-            let current_cell = cloned_self.cells[current_index];
+            // process cells around a given ant
+            perimeter_cells.clone().into_iter().for_each(|(row, col, cell)| {
+                let index = cloned_self.get_index(row, col);
+                next[index] = ant.process_cell(cell, row, col);
+            });
             match (ant.status, ant.food_ct) {
                 (AntState::Searching(x , y), _) => {
-                    perimeter_cells.clone().into_iter().for_each(|(row, col, cell)| {
-                        let index = cloned_self.get_index(row, col);
-                        next[index] = ant.process_cell(cell, row, col);
-                    });
+                    // random explorations
                     ant.wander(&x, &y, &perimeter_cells);
-                    // ant goes to it's implicitly defined path
                 },
 
-                (AntState::Returning(x, y), 0) => {}, // this is impossible, ants cannot return w/o food
+                (AntState::Returning(_x, _y), 0) => {}, // this is impossible, ants cannot return w/o food
                 (AntState::Returning(x, y), 1..) => {
-
+                     
                     let idx = ant.get_index();
                     next[idx] = Cell::build_pheremone_cell(ant.food_ct as f64 * 1.0);
-                    perimeter_cells.clone().into_iter().for_each(|(row, col, cell)| {
-                        let index = cloned_self.get_index(row, col);
-                        next[index] = ant.process_cell(cell, row, col);
-                    });
+                    
                     ant.return_home(x, y);
                     
-                    // Logic for returning home
                 },
 
-                (_,_) => {}
-
-                // Handle other states as needed
             }
         }
         self.cells = next;
@@ -186,8 +160,8 @@ impl Universe {
         utils::set_panic_hook();
     
         let perlin = Perlin::new((js_sys::Math::random() * 100.0) as u32); // Corrected constructor call (remove the '1')
-        let scale = 0.09;  // Adjust scale to zoom in or out of the noise pattern
-        let threshold = 0.5;  // Adjust threshold to increase/decrease food density
+        let scale = 0.12;  // Adjust scale to zoom in or out of the noise pattern
+        let threshold = 0.4;  // Adjust threshold to increase/decrease food density
     
         let width = 160;
         let height = 160;
