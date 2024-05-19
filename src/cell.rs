@@ -4,7 +4,7 @@ use wasm_bindgen::prelude::*;
 #[derive(Clone,Copy, Debug, PartialEq)]
 pub struct Cell {
     pub cell_type: CellType,
-    pub pheromone_level: f64,  // This field is only used when cell_type is Trail
+    pub pheromone_level: f32,  // This field is only used when cell_type is Trail
 }
 #[wasm_bindgen]
 
@@ -23,7 +23,10 @@ impl Cell {
     pub fn to_u8(&self) -> u8 {
         self.cell_type as u8
     }
-    pub fn build_pheremone_cell(new_pheremone_level : f64) -> Cell{
+    pub fn get_pheromone_level(&self) -> f32 {
+        self.pheromone_level
+    }
+    pub fn build_pheremone_cell(new_pheremone_level : f32) -> Cell{
         
         Cell {
             cell_type : CellType::Trail,

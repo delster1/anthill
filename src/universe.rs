@@ -42,13 +42,15 @@ impl Universe {
     pub fn is_within_bounds(&self, x: u32, y: u32) -> bool {
         x < self.width && y < self.height
     }
+    pub fn get_cell(&mut self, row: u32, col: u32) -> Cell {
+        let index = self.get_index(row, col);
+        self.cells[index]
+    }
     pub fn new_ant(&mut self) {
-        let dest_x ={ js_sys::Math::random() * 80.0} as u32;
-        let dest_y = {js_sys::Math::random() * 80.0} as u32;
+        
 
-        let my_ant = Ant { pos: (self.width/2, self.height/2), status: AntState::Searching(dest_x, dest_y), home : (self.width/2, self.height/2), food_ct: 0};
+        let my_ant = Ant { pos: (self.width/2, self.height/2), status: AntState::Searching(0, 0), home : (self.width/2, self.height/2), food_ct: 0, energy: 1000, starting_energy: 1000, wander_chance: {js_sys::Math::random() * 100.0} as u32};
         self.ants.push(my_ant);
-        log!("Created new ant going to {dest_x}, {dest_y}");
     }
 
     pub fn tick(&mut self) {
@@ -57,7 +59,7 @@ impl Universe {
             for col in 0..self.height {
                 
                 let idx = self.get_index(row, col);
-                next[idx].pheromone_level -= 0.12;
+                next[idx].pheromone_level -= 0.05;
                 if next[idx].pheromone_level < 0.5 && (next[idx].cell_type == CellType::Trail)  {
                     next[idx].cell_type = CellType::Empty;
                     next[idx].pheromone_level = 0.0;
@@ -68,8 +70,9 @@ impl Universe {
             
         }
         let mut cloned_self = self.clone();
-
+        let mut next_ants : Vec<Ant> = vec![];
         for ant in &mut self.ants {
+            
             let possible_moves: [(i32, i32); 8] = [(1,0),(1,1),(0,1),(-1,1),(-1,0),(-1,-1),(0,-1),((1,-1))];
             let perimeter_cells: Vec<(u32, u32, Cell)> = possible_moves.iter()
                 .filter_map(|(dx, dy)| {
@@ -99,14 +102,50 @@ impl Universe {
                 (AntState::Returning(x, y), 1..) => {
                      
                     let idx = ant.get_index();
-                    next[idx] = Cell::build_pheremone_cell(ant.food_ct as f64 * 1.0);
-                    
+                    next[idx] = Cell::build_pheremone_cell(ant.food_ct as f32 * 1.0);
+                    perimeter_cells.clone().into_iter().for_each(|(row, col, cell)| {
+                        let index = cloned_self.get_index(row, col);
+                        next[index] = Cell::build_pheremone_cell(ant.food_ct as f32 * 1.0);
+                    });
                     ant.return_home(x, y);
                     
                 },
-
+                (AntState::Wandering(_), 1..) => {
+                    ant.random_wander();
+                },
+                (AntState::Wandering(_), 0) => {
+                    panic!("This shouldn't happen");
+                }
             }
+            if ant.is_near_home() {
+                // let mutation = ({js_sys::Math::random() as u32} * 10) - 20;
+                let energy = ant.starting_energy ;
+                // Ant has returned home, create a new ant
+                (1..ant.food_ct).for_each(|_| {
+                    
+                    let new_ant = Ant {
+                        pos: ant.home,
+                        status: AntState::Searching(js_sys::Math::random() as u32 * cloned_self.width, js_sys::Math::random() as u32 * cloned_self.height),
+                        home: ant.home,
+                        food_ct: 0,
+                        energy: energy,
+                        starting_energy: energy,
+                        wander_chance: {js_sys::Math::random() * 100.0} as u32,
+                    };
+                    next_ants.push(new_ant);
+                });
+                log!("made {:?} ants", ant.food_ct );
+                
+            }
+            if ant.energy > 1 {
+                next_ants.push(*ant);
+            }
+            else {
+                ant.die();
+            }
+            
         }
+        self.ants = next_ants;
         self.cells = next;
         self.simple_cells = self.cells.iter().map(|cell| cell.cell_type as u8).collect();
 
@@ -129,15 +168,7 @@ impl Universe {
     }
 
 
-    // fn make_food_clusters(&mut self, cells: Vec<Cell>) -> Vec<Cell> {
-        
-        
-    //     let new_cells = cells.iter().map(|i| {
-    //         js_sys::Math::random();
-    //     }).collect();
-    //     new_cells
-    // }
-    // You might also need a method to get the number of ants to correctly iterate over the array in JS
+    
     pub fn ants_count(&mut self) -> u32 {
         self.ants.len() as u32
     }
@@ -187,12 +218,16 @@ impl Universe {
         let num_ants = 100;
         let home_loc = (width / 2, height / 2);
         let mut ants = Vec::new();
+        let energy = {js_sys::Math::random() * 300.0 }as u32;
         for _ in 0..num_ants {
             ants.push(Ant {
                 pos: home_loc,
                 status: AntState::Searching(js_sys::Math::random() as u32 * width, js_sys::Math::random() as u32 * height),
                 home: home_loc,
                 food_ct:  0,
+                energy: energy,
+                starting_energy : energy,
+                wander_chance: {js_sys::Math::random() * 100.0  } as u32,
             });
         }
         let simple_cells = cells.iter().map(|cell| cell.cell_type as u8).collect();

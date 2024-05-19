@@ -13,18 +13,30 @@
         pub status: AntState,
         pub home: (u32, u32),
         pub food_ct: u32,
+        pub energy: u32,
+        pub starting_energy: u32,
+        pub wander_chance: u32,
     }
     #[derive(Clone, Copy, PartialEq, Eq, Debug)]
     pub enum AntState {
         Searching(u32, u32),
         Returning(u32, u32),
+        Wandering(u32)
     }
-
+    
     impl Ant{
         fn is_position_within_bounds(&self, x: u32, y: u32) -> bool {
             x < UNIV_SIZE && y < UNIV_SIZE
         }
-
+        pub fn is_near_home(&self) -> bool {
+            let (home_x, home_y) = self.home;
+            let (x, y) = self.pos;
+    
+            let dx = (x as i32 - home_x as i32).abs();
+            let dy = (y as i32 - home_y as i32).abs();
+    
+            dx <= 1 && dy <= 1
+        }
         fn start_search(&mut self) {
             self.food_ct = 0;
             self.status = AntState::Searching(0, 0);
@@ -36,14 +48,14 @@
         pub fn process_cell(&mut self, cell_to_process : Cell, row:  u32, col : u32) -> Cell {
 
             let current_cell_type = cell_to_process.cell_type;
-            match current_cell_type {
-                CellType::Empty => {
+            match (self.status, current_cell_type) {
+                (_, CellType::Empty) => {
                     Cell {
-                        pheromone_level : 0.0,
+                        pheromone_level : cell_to_process.pheromone_level - 1.0,
                         cell_type : CellType::Empty,
                     }
                 },
-                CellType::Food => {
+                (_, CellType::Food) => {
                     self.food_ct += 1;
                     self.found_food(&row, &col);
                     Cell {
@@ -51,26 +63,76 @@
                         cell_type : CellType::Trail,
                     }
                 },
-                CellType::Trail => {
+                (AntState::Returning(_,_ ), CellType::Trail) => {
                     Cell {
                         pheromone_level : cell_to_process.pheromone_level + 1.0,
                         cell_type : CellType::Trail,
                     }
                 },
-                CellType::Searched => {
+                (AntState::Searching(_,_ ), CellType::Trail) => {
+                    Cell {
+                        pheromone_level : cell_to_process.pheromone_level,
+                        cell_type : CellType::Trail,
+                    }
+                },
+                (_,CellType::Searched) => {
                     Cell {
                         pheromone_level : 0.0,
                         cell_type : CellType::Searched,
                     }
                 },
-                CellType::Home => {
+                (_, CellType::Home) => {
                     Cell {
                         pheromone_level : 0.0,
                         cell_type : CellType::Home,
                     }
+                },
+                (_, CellType::Trail) => { 
+                    Cell {
+                        pheromone_level : cell_to_process.pheromone_level + 1.0,
+                        cell_type : CellType::Trail,
+                    }
                 }
+                // }, (_, ) => {self.random_wander();
+                
+                
 
             }
+        }
+        pub fn random_wander(&mut self) {
+            self.subtract_energy();
+            let stop_chance : u32 = {js_sys::Math::random() * 100.0} as u32;
+            if stop_chance < self.wander_chance {
+                self.status = AntState::Returning(self.pos.0, self.pos.1);
+                self.return_home(self.pos.0, self.pos.1);
+                return;
+            }
+            // random wander - strictly for after found initial food
+            let new_move : (u32, u32);
+            match js_sys::Math::random() {
+                (0.0..=0.25) => {
+                    // Randomly move right
+                    new_move = (self.pos.0 + 1, self.pos.1);
+                },
+                (0.25..=0.5) => {
+                    // Randomly move left
+                    new_move = (self.pos.0 - 1, self.pos.1);
+                },
+                (0.5..=0.75) => {
+                    // Randomly move down
+                    new_move = (self.pos.0, self.pos.1 + 1);
+                },
+                (0.75..=1.0) => {
+                    // Randomly move up
+                    new_move = (self.pos.0, self.pos.1 - 1);
+                },
+                _ => {
+                    // Default case should theoretically never be hit since Math::random() returns [0, 1)
+                    new_move = (self.home.0, self.home.1);
+                }
+            }
+    
+            self.update_position(new_move.0,new_move.1);
         }
         fn calculate_slope(&mut self) -> Option<f32> {
         // determines a static-ish slope depending on antstate that will be compared to determine ant's next move every tick
@@ -87,6 +149,9 @@
                     let slope = (y as f32 - self.home.1 as f32) / (x as f32 - self.home.0 as f32);
                     Some(slope)
                 },
+                AntState::Wandering(_) => {
+                    panic!("This shouldn't happen!");
+                }
                 
                 // Otherwise, calculate the slope and wrap it in Some 
             }
@@ -94,40 +159,49 @@
         }
     pub fn found_food(&mut self, row: &u32, col: &u32) {
         self.food_ct += 1;
-
+        self.energy += 50;
         match self.status {
             AntState::Searching(_, _) => {
+                self.status = AntState::Wandering(self.wander_chance);
+
                 // If the ant finds food while searching, it should start wandering.
-                log!("Ant found food, returning home!");
+                log!("Ant found food, starting to wander!");
                 self.status = AntState::Returning(*row, *col);
                 self.return_home(*row,* col);
             },
             AntState::Returning(_, _) => {
                 // If the ant is already returning, ignore additional food.
-                self.food_ct += 1;
+                self.return_home(*row,* col)
             },
+            AntState::Wandering(_) => {
+                
+                self.random_wander();
+            }
         }
     }
-
+    pub fn subtract_energy(&mut self) {
+        self.energy -= 1;
+    }
+    pub fn die(&mut self) {
+        log!("ANT DIED!");
+    }
     pub fn wander(&mut self, row : &u32, col: &u32, perimeter_cells: &Vec<(u32, u32, Cell)>) {
+        self.subtract_energy();
         let homex = self.home.0;
         let homey = self.home.1;
+        let mut total_pheremone_level :f32 = 0.0;
         let mut searched_cells: Vec<(u32, u32)> = vec![];
         let new_move : (u32, u32);
         let current_distance = self.get_current_distance_to(&homex, &homey) as f32;
         for &(new_x, new_y, ref cell) in perimeter_cells {
+            total_pheremone_level += cell.pheromone_level;
             let test_distance = self.get_distance_from_to(&new_x, &new_y, &homex, &homey) as f32;
-
             match cell.cell_type {
                 CellType::Trail  if test_distance > current_distance && cell.pheromone_level > 0.1 => {
                     self.update_position(new_x, new_y);
                     return;
                 },
-                CellType::Food => {
-                    // self.status = AntState::Returning(*row, *col);
-                    // self.food_ct += 1;
-                    // self.found_food(&row, &col);
-                }, 
+                CellType::Food => {}, 
                 CellType::Searched => {
                     searched_cells.push((*row, *col));
                 }, // Do nothing if the cell is already searched
@@ -177,6 +251,9 @@
                     let slope = (y as f32 - curr_y as f32) / (x as f32 - curr_x as f32);
                     Some(slope)
                 },
+                AntState::Wandering(_) => {
+                    panic!("This shouldn't happen!");
+                }
             }
             // Otherwise, calculate the slope and wrap it in Some
         }
