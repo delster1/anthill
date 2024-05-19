@@ -5,13 +5,13 @@ This is a project where I am implementing an ant simulation using rust and web a
 **Desc:** Rust anthill with intelligent ant pathfinding
 
  *goals/todos:*
-  - handle weird slope calculation bug...
-  - make ants mark explored areas as they explore
-      - change implementation of ant movement dependent on perimeter cells:
-          - edge case for surrounded by bad moves
-          - figure out quick way to avoid bad moves
+  - ~~handle weird slope calculation bug...~~
+  - ~~make ants mark explored areas as they explore~~
+  - add ant energy, and make ants die if they wander for long enough without finding food
+    - upon death, ant leaves "coprse", marking an area as "searched" forever
+    - when an ant comes back successfully, they multiply and create a second ant
   - refactor how data is sent to wasm for speed
-  
+
  *potential stretch goals*
   - change from canvas to cooler renderer (emojis)
       - this will likely require to a more vector-based movement system
@@ -35,6 +35,8 @@ This is a project where I am implementing an ant simulation using rust and web a
   - refactored ant exploration again to be more ant-like
   - thus changed implementation of returning home and exploring close paths
   - track ant food and weight paths
+  - handled weird slope exploration bug
+  - 
 
 **To run:**
 ```
