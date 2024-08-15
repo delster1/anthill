@@ -109,35 +109,30 @@
             }
             // random wander - strictly for after found initial food
             let new_move : (u32, u32);
-            match js_sys::Math::random() {
-                (0.0..=0.25) => {
-                    // Randomly move right
+            let rand_value = js_sys::Math::random();
+            new_move = if rand_value < 0.25
+            {
                     self.status = AntState::Searching(1, 0);
-                    new_move = (self.pos.0 + 1, self.pos.1);
-                },
-                (0.25..=0.5) => {
+                (self.pos.0 + 1, self.pos.1)
+            }
+            else if rand_value < 0.5 {
                     // Randomly move left
                     self.status = AntState::Searching( -1, 0);
 
-                    new_move = (self.pos.0 - 1, self.pos.1);
-                },
-                (0.5..=0.75) => {
+                (self.pos.0 - 1, self.pos.1)
+            }
+            else if rand_value < 0.75 {
                     // Randomly move down
                     self.status = AntState::Searching( 0, 1);
 
-                    new_move = (self.pos.0, self.pos.1 + 1);
-                },
-                (0.75..=1.0) => {
+                (self.pos.0, self.pos.1 + 1)
+            }
+            else {
                     // Randomly move up
                     self.status = AntState::Searching(0, -1);
 
-                    new_move = (self.pos.0, self.pos.1 - 1);
-                },
-                _ => {
-                    // Default case should theoretically never be hit since Math::random() returns [0, 1)
-                    new_move = (self.home.0, self.home.1);
-                }
-            }
+                (self.pos.0, self.pos.1 - 1)
+            };
     
             self.update_position(new_move.0,new_move.1);
         }
@@ -219,54 +214,57 @@
                 }, // Do nothing if the cell is already searched
                 _ => {} // Ignore other cell types
             }
-            match (new_x - self.pos.0, new_y - self.pos.1) {
+            match ((new_x - self.pos.0) as i32, (new_y - self.pos.1) as i32) {
                 (1, 0) => {
                     pheromone_weights.push(cell.pheromone_level);
                 },
                 (0, 1) => {
                     pheromone_weights.push(cell.pheromone_level);
                 },
+                (-1, 0) => {
+                    pheromone_weights.push(cell.pheromone_level)
+                }
+                (0, -1) => {
+                    pheromone_weights.push(cell.pheromone_level)
+                },
                 (_,_) => {},
                  
             }
         }
-        match js_sys::Math::random() {
-            (0.0..=0.25) => {
+        let rand_value = js_sys::Math::random();
+        new_move = if rand_value < 0.25 {
                 // Randomly move right
                 self.status = AntState::Searching(1, 0);
                 // let move_cell =  perimeter_cells[0];
-                new_move = (self.pos.0 + 1, self.pos.1);
-            },
-            (0.25..=0.5) => {
+                (self.pos.0 + 1, self.pos.1)
+        }
+        else if rand_value < 0.5 {
                 // let move_cell =  perimeter_cells[4];
 
                 // Randomly move left
                 self.status = AntState::Searching(-1, 0);
 
-                new_move = (self.pos.0 - 1, self.pos.1);
-            },
-            (0.5..=0.75) => {
+                (self.pos.0 - 1, self.pos.1)
+        }
+        else if rand_value < 0.75 {
                 // let move_cell =  perimeter_cells[2];
                 // Randomly move down
                 self.status = AntState::Searching(0, 1);
 
-                new_move = (self.pos.0, self.pos.1 + 1);
-            },
-            (0.75..=1.0) => {
+                (self.pos.0, self.pos.1 + 1)
+        }
+        else {
                 // let move_cell =  perimeter_cells[6];
+
                 // Randomly move up
                 self.status = AntState::Searching(0, -1);
 
-                new_move = (self.pos.0, self.pos.1 - 1);
-            },
-            _ => {
-                // Default case should theoretically never be hit since Math::random() returns [0, 1)
-                new_move = (self.home.0, self.home.1);
-            }
-        }
+                (self.pos.0, self.pos.1 - 1)
+        };
         pheromone_weights = pheromone_weights.iter_mut().map(|weight| {
-            let current_weight = match weight {
-                0.0 => {1.0},
+            let current_weight = match *weight as i32{
+                0 => {1.0},
+                -1 => {0.0}
                 _ => {*weight}
             };
             let random_value = js_sys::Math::random() as f32;
