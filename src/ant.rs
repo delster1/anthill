@@ -1,7 +1,6 @@
 // TODO: 
-// - FIX SLope calculation errror when ant is at y=0
    
-
+    
     use crate::cell::{Cell, CellType};
 
     const UNIV_SIZE : u32  = 160;
@@ -18,8 +17,9 @@
         pub wander_chance: u32,
     }
     #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+    // MARK: TOdo
     pub enum AntState {
-        Searching(u32, u32),
+        Searching(i32, i32), // using values stored in searching to track last move - creating more ant-like mvmnt - keep a direction and randomly maintian it
         Returning(u32, u32),
         Wandering(u32)
     }
@@ -104,7 +104,7 @@
             let stop_chance : u32 = {js_sys::Math::random() * 100.0} as u32;
             if stop_chance < self.wander_chance {
                 self.status = AntState::Returning(self.pos.0, self.pos.1);
-                self.return_home(self.pos.0, self.pos.1);
+                self.return_home(self.pos.0 as i32, self.pos.1 as i32);
                 return;
             }
             // random wander - strictly for after found initial food
@@ -112,18 +112,25 @@
             match js_sys::Math::random() {
                 (0.0..=0.25) => {
                     // Randomly move right
+                    self.status = AntState::Searching(1, 0);
                     new_move = (self.pos.0 + 1, self.pos.1);
                 },
                 (0.25..=0.5) => {
                     // Randomly move left
+                    self.status = AntState::Searching( -1, 0);
+
                     new_move = (self.pos.0 - 1, self.pos.1);
                 },
                 (0.5..=0.75) => {
                     // Randomly move down
+                    self.status = AntState::Searching( 0, 1);
+
                     new_move = (self.pos.0, self.pos.1 + 1);
                 },
                 (0.75..=1.0) => {
                     // Randomly move up
+                    self.status = AntState::Searching(0, -1);
+
                     new_move = (self.pos.0, self.pos.1 - 1);
                 },
                 _ => {
@@ -167,11 +174,11 @@
                 // If the ant finds food while searching, it should start wandering.
                 log!("Ant found food, starting to wander!");
                 self.status = AntState::Returning(*row, *col);
-                self.return_home(*row,* col);
+                self.return_home(*row as i32,* col as i32);
             },
             AntState::Returning(_, _) => {
                 // If the ant is already returning, ignore additional food.
-                self.return_home(*row,* col)
+                self.return_home(*row as i32,* col as i32)
             },
             AntState::Wandering(_) => {
                 
@@ -182,13 +189,18 @@
     pub fn subtract_energy(&mut self) {
         self.energy -= 1;
     }
-    pub fn die(&mut self) {
-        log!("ANT DIED!");
+    pub fn die(&mut self) -> Cell {
+        Cell {
+            cell_type: CellType::Searched,
+            pheromone_level: -1.0,
+        }
     }
     pub fn wander(&mut self, row : &u32, col: &u32, perimeter_cells: &Vec<(u32, u32, Cell)>) {
+
         self.subtract_energy();
         let homex = self.home.0;
         let homey = self.home.1;
+        let mut pheromone_weights : Vec<f32> = vec![];
         let mut total_pheremone_level :f32 = 0.0;
         let mut searched_cells: Vec<(u32, u32)> = vec![];
         let new_move : (u32, u32);
@@ -203,26 +215,48 @@
                 },
                 CellType::Food => {}, 
                 CellType::Searched => {
-                    searched_cells.push((*row, *col));
+                    // searched_cells.push((*row, *col));
                 }, // Do nothing if the cell is already searched
                 _ => {} // Ignore other cell types
+            }
+            match (new_x - self.pos.0, new_y - self.pos.1) {
+                (1, 0) => {
+                    pheromone_weights.push(cell.pheromone_level);
+                },
+                (0, 1) => {
+                    pheromone_weights.push(cell.pheromone_level);
+                },
+                (_,_) => {},
+                 
             }
         }
         match js_sys::Math::random() {
             (0.0..=0.25) => {
                 // Randomly move right
+                self.status = AntState::Searching(1, 0);
+                // let move_cell =  perimeter_cells[0];
                 new_move = (self.pos.0 + 1, self.pos.1);
             },
             (0.25..=0.5) => {
+                // let move_cell =  perimeter_cells[4];
+
                 // Randomly move left
+                self.status = AntState::Searching(-1, 0);
+
                 new_move = (self.pos.0 - 1, self.pos.1);
             },
             (0.5..=0.75) => {
+                // let move_cell =  perimeter_cells[2];
                 // Randomly move down
+                self.status = AntState::Searching(0, 1);
+
                 new_move = (self.pos.0, self.pos.1 + 1);
             },
             (0.75..=1.0) => {
+                // let move_cell =  perimeter_cells[6];
                 // Randomly move up
+                self.status = AntState::Searching(0, -1);
+
                 new_move = (self.pos.0, self.pos.1 - 1);
             },
             _ => {
@@ -230,8 +264,35 @@
                 new_move = (self.home.0, self.home.1);
             }
         }
+        pheromone_weights = pheromone_weights.iter_mut().map(|weight| {
+            let current_weight = match weight {
+                0.0 => {1.0},
+                _ => {*weight}
+            };
+            let random_value = js_sys::Math::random() as f32;
+            current_weight * random_value
+            // NOTE: current_weight can be negative, making this algoritm not work anymore... need
+            // to figure this out
+        }).collect();
+        let index_of_max: Option<usize> = pheromone_weights
+        .iter()
+        .enumerate()
+        .max_by(|(_, a), (_, b)| a.total_cmp(b))
+        .map(|(index, _)| index); 
+// TODO: FIX BELOW TO IMPLEMENT WEIGHTED MVMNT
+// MARK: FIX TO MAKE 
+        let new_move = match(pheromone_weights.len(), index_of_max)  {
+            (0, _) => new_move,
+            (_, Some(0)) => {(self.pos.0 + 1, self.pos.1)},
+            (_, Some(1)) => {(self.pos.0, self.pos.1 + 1)},
+            (_, Some(2)) => {(self.pos.0 - 1, self.pos.1)},
+            (_, Some(3)) => {(self.pos.0, self.pos.1 - 1)}, 
+            (_, _) => {(self.home.0 , self.home.1)}
+        };
+        
 
         self.update_position(new_move.0,new_move.1);
+
     }
     pub fn calculate_current_slope(&mut self, test_position: (u32, u32)) -> Option<f32> {
         // determines a slope given a test posititon and implicit destination
@@ -294,7 +355,7 @@
         return (self.pos.0 * UNIV_SIZE + self.pos.1) as usize;
     }
 
-    pub fn return_home(&mut self, x: u32, y:u32) {
+    pub fn return_home(&mut self, x: i32, y:i32) {
         let pos_x = self.pos.0;
         let pos_y = self.pos.1;
         // Change the ant's status to Searching if it is already at the origin

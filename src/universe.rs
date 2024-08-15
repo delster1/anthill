@@ -95,7 +95,7 @@ impl Universe {
             match (ant.status, ant.food_ct) {
                 (AntState::Searching(x , y), _) => {
                     // random explorations
-                    ant.wander(&x, &y, &perimeter_cells);
+                    ant.wander(&0, &0, &perimeter_cells);
                 },
 
                 (AntState::Returning(_x, _y), 0) => {}, // this is impossible, ants cannot return w/o food
@@ -107,7 +107,7 @@ impl Universe {
                         let index = cloned_self.get_index(row, col);
                         next[index] = Cell::build_pheremone_cell(ant.food_ct as f32 * 1.0);
                     });
-                    ant.return_home(x, y);
+                    ant.return_home(x as i32, y as i32);
                     
                 },
                 (AntState::Wandering(_), 1..) => {
@@ -125,7 +125,7 @@ impl Universe {
                     
                     let new_ant = Ant {
                         pos: ant.home,
-                        status: AntState::Searching(js_sys::Math::random() as u32 * cloned_self.width, js_sys::Math::random() as u32 * cloned_self.height),
+                        status: AntState::Searching(0,0),
                         home: ant.home,
                         food_ct: 0,
                         energy: energy,
@@ -141,7 +141,13 @@ impl Universe {
                 next_ants.push(*ant);
             }
             else {
-                ant.die();
+                perimeter_cells.clone().into_iter().for_each(|(row, col, cell)| {
+
+                    let index = cloned_self.get_index(row, col);
+                    next[index] = ant.die();
+                });
+                let index = cloned_self.get_index(ant.pos.0, ant.pos.1);
+                next[index] = ant.die();
             }
             
         }
@@ -222,7 +228,7 @@ impl Universe {
         for _ in 0..num_ants {
             ants.push(Ant {
                 pos: home_loc,
-                status: AntState::Searching(js_sys::Math::random() as u32 * width, js_sys::Math::random() as u32 * height),
+                status: AntState::Searching(0,0),
                 home: home_loc,
                 food_ct:  0,
                 energy: energy,
