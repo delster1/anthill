@@ -7,8 +7,9 @@ This is a project where I am implementing an ant simulation using rust and web a
  *goals/todos:*
   - ~~handle weird slope calculation bug...~~
   - ~~make ants mark explored areas as they explore~~
-  - add ant energy, and make ants die if they wander for long enough without finding food
+  - ~~add ant energy, and make ants die if they wander for long enough without finding food~~
     - upon death, ant leaves "coprse", marking an area as "searched" forever
+    - weight specific areas accordingly, adjusting ant movement
     - when an ant comes back successfully, they multiply and create a second ant
   - refactor how data is sent to wasm for speed
 
