@@ -1,14 +1,6 @@
 // TODO:
 // - refactor code out of canvas to a better render thing
 // - refactor code to run faster by changing how data is sent to wasm
-// - Add food spawning in clusters
-// - FINISHED CHANGING ANT HOME TO MIDDLE
-// - Fix associated movement functions like changing home and re-searching - get code prod-ready
-// - figure out ant pheremones
-    // - do paths need to be a list of pts?
-    // - how will ants travel along them to and from?
-// - add obstacles and pathfinding around
-// - add ants searching perimeter for food
 mod utils;
 mod universe;
 mod cell;
