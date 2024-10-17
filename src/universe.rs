@@ -59,7 +59,10 @@ impl Universe {
             for col in 0..self.height {
                 
                 let idx = self.get_index(row, col);
-                next[idx].pheromone_level -= 0.05;
+                if next[idx].pheromone_level > 0.0 {
+
+                    next[idx].pheromone_level -= 0.05;
+                }
                 if next[idx].pheromone_level < 0.5 && (next[idx].cell_type == CellType::Trail)  {
                     next[idx].cell_type = CellType::Empty;
                     next[idx].pheromone_level = 0.0;
