@@ -228,7 +228,6 @@
                     pheromone_weights.push(cell.pheromone_level)
                 },
                 (_,_) => {},
-                 
             }
         }
         let rand_value = js_sys::Math::random();
